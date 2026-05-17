@@ -1,6 +1,6 @@
 ---
 name: mineru
-description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula recognition, table extraction, and batch processing.
+description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula recognition, table extraction, batch processing, and staging parsed books for LLM skill extraction.
 triggers:
   - mineru
   - pdf解析
@@ -8,12 +8,18 @@ triggers:
   - document parsing
   - pdf to markdown
   - extract pdf
+  - book to skill
+  - 书籍转 skill
+  - 从书中提炼 skill
+  - 技能提炼
 ---
 
 # MinerU API Skill
 
 ## Overview
 MinerU converts PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML into machine-readable Markdown/JSON. Supports OCR (109 languages), formula/table recognition, cross-page table merging, and batch processing.
+
+This skill can also stage a parsed book as a **book skill pack**: a workspace that a large language model can read to extract candidate agent skills, grouped by source book. The first iteration does not call an LLM and does not install generated skills automatically.
 
 **Two modes:**
 - **Cloud API** — `https://mineru.net/api/v4` (no GPU required, token-based)
@@ -163,7 +169,94 @@ mineru-parse.sh doc.pdf --pages "1-5,8" --output ./results
 
 # Auto-extract markdown from zip
 mineru-parse.sh doc.pdf --output ./results --extract
+
+# Extract without printing book-sized markdown and write a local manifest
+mineru-parse.sh book.pdf --output ./results --extract --no-print-md --manifest ./results/parse_manifest.json
 ```
+
+## Book-to-Skill Workflow
+
+Use this when the user uploads a book and wants the agent to learn which reusable skills can be extracted from it.
+
+### Commands
+
+```bash
+# Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
+~/.claude/skills/mineru/scripts/mineru-book-to-skill.sh /path/to/book.pdf \
+  --title "Book Title" \
+  --output ./book-workspaces \
+  --cloud-ok
+
+# If the book is already parsed to Markdown, stage a pack directly.
+~/.claude/skills/mineru/scripts/book-skill-pack.sh ./mineru-extracted/book \
+  --title "Book Title" \
+  --output ./book-skill-packs
+```
+
+### Output Contract
+
+The wrapper creates a book-scoped workspace:
+
+```text
+book-workspaces/
+└── books/
+    └── <book-slug>/
+        ├── README.md
+        ├── source/
+        ├── mineru/
+        │   ├── parse_manifest.json
+        │   ├── *_result.zip
+        │   └── <extracted markdown files>
+        └── analysis/
+            └── book-skill-pack/
+                ├── README.md
+                ├── manifest.json
+                ├── LLM_EXTRACTION_PROMPT.md
+                ├── BOOK_SKILL_INDEX.md
+                ├── MANAGE_SKILLS.md
+                ├── source-markdown/
+                └── skills/
+```
+
+Give `LLM_EXTRACTION_PROMPT.md` and `source-markdown/` to a large language model. The model should fill:
+
+- `BOOK_SKILL_INDEX.md`: what this book can help the agent do, when to reference it, and a table of skill candidates.
+- `skills/*.md`: one candidate skill per file, using the generated `_skill-template.md`.
+
+### Extraction Criteria
+
+Extract only content that can become an operational skill:
+
+- procedures and workflows
+- checklists
+- diagnostics
+- decision rules
+- reusable prompt patterns
+- coding or analysis patterns
+- frameworks with clear trigger situations
+
+Keep broad concepts and background theory as reference-only material unless the book gives a concrete procedure.
+
+### Manage Skills Boundary
+
+Book skill packs are candidates. Do not automatically install, enable, or sync generated skills. After human review, promote only stable skills into the managed skills repository, then run the local skills manager separately, for example:
+
+```bash
+skills enable <promoted-skill-name>
+```
+
+The generated pack must not store API tokens, authorization headers, remote result URLs, or private account data.
+
+### Roadmap Notes
+
+Future iterations should preserve the source structure more strongly:
+
+- split books by chapter or section heading
+- extract candidate skills chapter by chapter
+- only then synthesize the whole-book capability summary
+- package skills under the book's structure so the agent can reference a book as a coherent source package
+
+The workflow should later support other long-form text sources such as video courses, papers, manuals, and article collections. Add a text-type classifier before extraction so the system can choose the right segmentation strategy for books, courses, papers, or other text-like inputs.
 
 ## Quick Parse (Python)
 

@@ -30,6 +30,8 @@ EXTRACT=false
 EXTRA_FORMATS=()
 DATA_ID=""
 QUIET=false
+PRINT_MD=true
+MANIFEST_FILE=""
 
 # ─── Colors ────────────────────────────────────────────────────
 if [[ -t 1 ]]; then
@@ -65,6 +67,8 @@ ${BOLD}Options:${NC}
   --format <fmt>     Extra output format: docx, html, latex (repeatable)
   --callback <url>   Webhook URL for async notification
   --data-id <id>     Custom identifier for tracking
+  --no-print-md      Do not print extracted markdown to stdout
+  --manifest <file>  Write a local parse manifest (requires --output)
   --quiet            Suppress progress output
   -h, --help         Show this help
 
@@ -119,6 +123,8 @@ while [[ $# -gt 0 ]]; do
         --format) EXTRA_FORMATS+=("$2"); shift 2 ;;
         --callback) CALLBACK="$2"; shift 2 ;;
         --data-id) DATA_ID="$2"; shift 2 ;;
+        --no-print-md) PRINT_MD=false; shift ;;
+        --manifest) MANIFEST_FILE="$2"; shift 2 ;;
         --quiet) QUIET=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *) INPUT="$1"; shift ;;
@@ -126,6 +132,8 @@ while [[ $# -gt 0 ]]; do
 done
 
 [[ -z "$INPUT" ]] && error "No input file or URL provided. Use -h for help."
+[[ -n "$MANIFEST_FILE" && -z "$OUTPUT_DIR" ]] && error "--manifest requires --output"
+[[ -n "$MANIFEST_FILE" && -n "$CALLBACK" ]] && error "--manifest cannot be used with --callback because no local result is downloaded"
 
 AUTH_HEADER="Authorization: Bearer $TOKEN"
 
@@ -193,6 +201,7 @@ api_call() {
 # ─── Helper: download and optionally extract ──────────────────
 download_result() {
     local zip_url="$1" filename="$2"
+    local out_file="" extract_dir="" md_file=""
 
     if [[ -z "$OUTPUT_DIR" ]]; then
         ok "Download URL: $zip_url"
@@ -200,25 +209,25 @@ download_result() {
     fi
 
     mkdir -p "$OUTPUT_DIR"
-    local out_file="$OUTPUT_DIR/${filename%.*}_result.zip"
+    out_file="$OUTPUT_DIR/${filename%.*}_result.zip"
     curl -s -o "$out_file" "$zip_url"
     ok "Saved to: $out_file"
 
     if [[ "$EXTRACT" == true ]]; then
-        local extract_dir="$OUTPUT_DIR/${filename%.*}"
+        extract_dir="$OUTPUT_DIR/${filename%.*}"
         mkdir -p "$extract_dir"
         unzip -qo "$out_file" -d "$extract_dir"
         ok "Extracted to: $extract_dir"
 
-        # Show markdown content if found
-        local md_file
         md_file=$(find "$extract_dir" -name "*.md" -type f | head -1)
         if [[ -n "$md_file" ]]; then
-            echo ""
-            echo -e "${BOLD}─── Markdown Output ───${NC}"
-            cat "$md_file"
-            echo ""
-            echo -e "${BOLD}───────────────────────${NC}"
+            if [[ "$PRINT_MD" == true ]]; then
+                echo ""
+                echo -e "${BOLD}─── Markdown Output ───${NC}"
+                cat "$md_file"
+                echo ""
+                echo -e "${BOLD}───────────────────────${NC}"
+            fi
             ok "Markdown file: $md_file"
         fi
 
@@ -227,6 +236,38 @@ download_result() {
         find "$extract_dir" -type f | while read -r f; do
             echo "    $(basename "$f")"
         done
+    fi
+
+    if [[ -n "$MANIFEST_FILE" ]]; then
+        mkdir -p "$(dirname "$MANIFEST_FILE")"
+        jq -n \
+            --arg schema "mineru.parse-manifest.v1" \
+            --arg input "$INPUT" \
+            --arg model "$MODEL" \
+            --arg filename "$filename" \
+            --arg zip_file "$out_file" \
+            --arg extract_dir "$extract_dir" \
+            --arg markdown_file "$md_file" \
+            --arg created_at "$(date -u +"%Y-%m-%dT%H:%M:%SZ")" \
+            --argjson ocr "$OCR" \
+            --argjson formula "$FORMULA" \
+            --argjson table "$TABLE" \
+            '{
+              schema: $schema,
+              input: $input,
+              filename: $filename,
+              model_version: $model,
+              is_ocr: $ocr,
+              enable_formula: $formula,
+              enable_table: $table,
+              zip_file: $zip_file,
+              extract_dir: $extract_dir,
+              markdown_file: $markdown_file,
+              created_at: $created_at,
+              stores_remote_result_url: false,
+              llm_invoked: false
+            }' > "$MANIFEST_FILE"
+        ok "Manifest: $MANIFEST_FILE"
     fi
 }
 

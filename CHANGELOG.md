@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+### Added
+- Book-to-skill first iteration with `scripts/mineru-book-to-skill.sh`.
+- `scripts/book-skill-pack.sh` for staging parsed Markdown as an LLM-ready book skill pack.
+- `examples/book_to_skill.sh` end-to-end example.
+- Book skill pack outputs: `LLM_EXTRACTION_PROMPT.md`, `BOOK_SKILL_INDEX.md`, `MANAGE_SKILLS.md`, `manifest.json`, `source-markdown/`, and `skills/`.
+- `--manifest` and `--no-print-md` options for `mineru-parse.sh`.
+
+### Changed
+- Documented the privacy boundary for book uploads through the MinerU cloud API.
+- Documented that generated book skill packs are candidates and are not automatically installed or enabled.
+- Documented roadmap notes for chapter-level extraction, whole-book synthesis, book-structured skill packaging, and future text-type classification.
+
 ## [1.1.0] - 2026-03-16
 
 ### Added

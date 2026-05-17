@@ -35,6 +35,7 @@
 | **Extra Formats** | Export to DOCX, HTML, or LaTeX alongside Markdown |
 | **CLI Script** | `mineru-parse.sh` for quick command-line usage |
 | **Auto-Extract** | Download + unzip + display markdown in one step |
+| **Book Skill Packs** | Stage parsed books for LLM extraction into candidate agent skills |
 
 ## Quick Start
 
@@ -78,6 +79,9 @@ Extract tables from report.pdf using the vlm model with OCR
 
 # Extra output formats
 ./scripts/mineru-parse.sh slides.pptx --format docx --format html
+
+# Turn a book into an LLM-ready skill extraction workspace
+./scripts/mineru-book-to-skill.sh book.pdf --title "My Book" --output ./workspaces --cloud-ok
 ```
 
 ## CLI Reference
@@ -100,6 +104,8 @@ mineru-parse.sh <url_or_file> [options]
 | `--format <fmt>` | Extra format: `docx`/`html`/`latex` | - |
 | `--callback <url>` | Webhook for async notification | - |
 | `--data-id <id>` | Custom tracking identifier | - |
+| `--no-print-md` | Do not print extracted markdown to stdout | off |
+| `--manifest <file>` | Write local parse manifest; requires `--output` | - |
 | `--quiet` | Suppress progress output | off |
 
 ### Environment Variables
@@ -130,6 +136,88 @@ mineru-parse.sh <url_or_file> [options]
 | Batch upload | 200 files / request |
 | Token validity | 90 days |
 
+## Book-to-Skill Workflow
+
+First iteration support is implemented as a staging workflow. It prepares a
+parsed book for a large language model, but it does **not** call an LLM and does
+**not** install or enable generated skills automatically.
+
+```bash
+# Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
+./scripts/mineru-book-to-skill.sh ~/Books/example.pdf \
+  --title "Example Book" \
+  --output ./book-workspaces \
+  --cloud-ok
+```
+
+The wrapper creates:
+
+```
+book-workspaces/
+└── books/
+    └── example-book/
+        ├── README.md
+        ├── source/
+        ├── mineru/
+        │   ├── parse_manifest.json
+        │   ├── *_result.zip
+        │   └── <extracted markdown files>
+        └── analysis/
+            └── book-skill-pack/
+                ├── README.md
+                ├── manifest.json
+                ├── LLM_EXTRACTION_PROMPT.md
+                ├── BOOK_SKILL_INDEX.md
+                ├── MANAGE_SKILLS.md
+                ├── source-markdown/
+                └── skills/
+```
+
+Give `LLM_EXTRACTION_PROMPT.md` and `source-markdown/` to a model. The model
+should fill `BOOK_SKILL_INDEX.md` and create one candidate file per extracted
+skill under `skills/`.
+
+Expected model output is book-scoped:
+
+- what the book can help the agent do
+- when the agent should reference the book
+- candidate workflows, checklists, diagnostics, decision rules, and prompt patterns
+- source anchors and confidence
+- which candidates should stay book-scoped vs be promoted to managed skills
+
+### Privacy Boundary
+
+This repository uses the MinerU cloud API by default. Local book files are
+uploaded to MinerU during parsing. Use a local MinerU workflow for private or
+sensitive books. Generated packs do not store API tokens, authorization headers,
+or remote result URLs.
+
+### Manage Skills Boundary
+
+Book packs are candidate workspaces. Review the generated `skills/*.md` files
+before promoting anything into a managed skill repository. Use your local skill
+manager only after review, for example:
+
+```bash
+skills enable <promoted-skill-name>
+```
+
+### Roadmap Notes
+
+Next iterations should make extraction more structural:
+
+- split the parsed book by chapters or section headings
+- extract skill candidates from each chapter first
+- synthesize the whole-book summary after chapter-level extraction
+- keep generated skills packaged by the book's structure, so an agent can refer
+  to the book as a coherent source package
+
+The same pipeline should later generalize beyond books. Future inputs can
+include video courses, papers, and other long-form text. Before extraction, the
+system should classify the text type, such as book, course transcript, paper,
+manual, or article collection, then choose the right segmentation and skill
+extraction strategy.
+
 ## Examples
 
 See the [`examples/`](examples/) directory for:
@@ -137,6 +225,7 @@ See the [`examples/`](examples/) directory for:
 - **[parse_single.sh](examples/parse_single.sh)** — Parse a single PDF from URL
 - **[parse_local.sh](examples/parse_local.sh)** — Upload and parse a local file
 - **[parse_batch.py](examples/parse_batch.py)** — Batch parse multiple documents (Python)
+- **[book_to_skill.sh](examples/book_to_skill.sh)** — Parse a book and stage an LLM-ready skill pack
 
 ## Project Structure
 
@@ -144,11 +233,14 @@ See the [`examples/`](examples/) directory for:
 mineru-skill/
 ├── SKILL.md                 # Claude Code skill definition (full API reference)
 ├── scripts/
-│   └── mineru-parse.sh      # CLI helper script
+│   ├── mineru-parse.sh      # CLI helper script
+│   ├── mineru-book-to-skill.sh # Book parsing + skill-pack staging wrapper
+│   └── book-skill-pack.sh   # Build a skill extraction pack from Markdown
 ├── examples/
 │   ├── parse_single.sh      # Single URL parsing example
 │   ├── parse_local.sh       # Local file parsing example
-│   └── parse_batch.py       # Batch processing example (Python)
+│   ├── parse_batch.py       # Batch processing example (Python)
+│   └── book_to_skill.sh     # Book-to-skill workspace example
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # Bug report & feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md
