@@ -19,7 +19,7 @@ POLL_INTERVAL="${MINERU_POLL_INTERVAL:-5}"
 MAX_POLL="${MINERU_MAX_POLL:-360}"  # 30 min max
 
 # ─── Defaults ──────────────────────────────────────────────────
-MODEL="hybrid"
+MODEL="vlm"
 OCR=false
 FORMULA=true
 TABLE=true
@@ -57,7 +57,7 @@ ${BOLD}Arguments:${NC}
   url_or_file        URL to a document or local file path
 
 ${BOLD}Options:${NC}
-  --model <m>        Model: hybrid (default), pipeline, vlm, MinerU-HTML
+  --model <m>        Model: vlm (default), pipeline, MinerU-HTML
   --ocr              Enable OCR mode
   --no-formula       Disable formula recognition
   --no-table         Disable table recognition
@@ -81,9 +81,9 @@ ${BOLD}Environment Variables:${NC}
 ${BOLD}Supported formats:${NC} PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML
 
 ${BOLD}Models:${NC}
-  hybrid     Best of pipeline + vlm (default, recommended)
-  pipeline   CPU-friendly, fast
-  vlm        Higher accuracy, needs GPU
+  vlm        Default. MinerU2.5, highest accuracy (cloud-recommended)
+  pipeline   CPU-friendly, fast, lower accuracy
+  hybrid     RETIRED on the cloud API since 2026-04 (code -10002)
   MinerU-HTML  Preserves HTML formatting
 
 ${BOLD}Examples:${NC}

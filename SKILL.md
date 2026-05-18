@@ -1,20 +1,39 @@
 ---
-name: mineru
-description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula recognition, table extraction, batch processing, and staging parsed long-form sources for LLM skill extraction.
+name: grimoire
+description: Grimoire — turn a PDF/document into reading notes + a reusable skill pack in one parse. Auto-classifies book/paper/document, scaffolds type-specific notes for an Obsidian vault, and mines per-source skills merged per book/course. Built on the MinerU parsing API (OCR, formula/table, batch). Scripts never call an LLM, never write the vault, never install skills — the agent does.
 triggers:
+  - grimoire
+  - 魔典
+  - 把这本书炼成魔典
+  - pdf 转笔记
+  - pdf to notes
+  - 帮我读这个 pdf
+  - 帮我读这个 pdf 写笔记并提炼 skill
+  - 读书笔记
+  - 论文笔记
+  - 文档笔记
+  - 这个 pdf 是书还是论文
+  - reading notes
+  - book to skill
+  - 书籍转 skill
+  - 从书中提炼 skill
+  - 技能提炼
   - mineru
   - pdf解析
   - 文档解析
   - document parsing
   - pdf to markdown
   - extract pdf
-  - book to skill
-  - 书籍转 skill
-  - 从书中提炼 skill
-  - 技能提炼
 ---
 
-# MinerU API Skill
+# Grimoire · 魔典 — Document → Notes + Skill Pack
+
+> One source, parsed once, woven into typed reading notes (→ Obsidian) and a
+> per-source skill pack. Primary entry point: `scripts/grimoire.sh`.
+> Full product overview and bilingual docs: see [README.md](README.md).
+>
+> The sections below are the underlying MinerU parsing API reference that the
+> `grimoire` toolchain is built on.
 
 ## Overview
 MinerU converts PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML into machine-readable Markdown/JSON. Supports OCR (109 languages), formula/table recognition, cross-page table merging, and batch processing.
@@ -24,6 +43,12 @@ a workspace that a large language model can read to extract candidate agent
 skills, grouped by source first and then by chapter, lesson, section, or note.
 The workflow does not call an LLM and does not install generated skills
 automatically.
+
+It can additionally run a **source-to-notes** pipeline: parse a document,
+**auto-classify it as `book` / `paper` / `document`** (hybrid heuristic + AI
+confirmation), scaffold the matching note discipline, and stage the final note
+for the Obsidian Knowledge-Hub vault. The agent does the reading and writing;
+the scripts never call an LLM and never write into the vault directly.
 
 **Two modes:**
 - **Cloud API** — `https://mineru.net/api/v4` (no GPU required, token-based)
@@ -55,10 +80,10 @@ chmod 600 ~/.config/mineru/token
 
 | Model | Use Case | Speed | Notes |
 |-------|----------|-------|-------|
-| `hybrid` | **Default since v2.7.0** — best of pipeline + vlm | Medium | Recommended for most use |
-| `pipeline` | General documents, CPU-friendly | Fast | Pure CPU support |
-| `vlm` | Complex layouts, higher accuracy | Slower | Needs GPU (10GB+ VRAM) |
+| `vlm` | **Default.** MinerU2.5, complex layouts, highest accuracy | Slower | Cloud-recommended; needs GPU locally |
+| `pipeline` | General documents, CPU-friendly | Fast | Pure CPU support, lower accuracy |
 | `MinerU-HTML` | HTML output, preserves formatting | Medium | For web content |
+| `hybrid` | ~~Default pre-2026-04~~ | — | **RETIRED on the cloud API** — returns `code -10002 "version field invalid"`. Do not use against `mineru.net`. |
 
 ## API Endpoints (Cloud)
 
@@ -72,7 +97,7 @@ POST /extract/task
 | Param | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | url | string | yes | - | File URL (no direct upload) |
-| model_version | string | no | hybrid | `hybrid` / `pipeline` / `vlm` / `MinerU-HTML` |
+| model_version | string | no | vlm | `vlm` / `pipeline` / `MinerU-HTML` (`hybrid` retired, returns `-10002`) |
 | is_ocr | bool | no | false | Enable OCR |
 | enable_formula | bool | no | true | Formula recognition |
 | enable_table | bool | no | true | Table recognition |
@@ -283,6 +308,81 @@ mixed source sets, and project notes. Override with `--type book`,
 `--type video`, `--type audio`, `--type web`, `--type mixed`, or
 `--type project-notes` when the automatic classifier is wrong.
 
+## Source-to-Notes Workflow
+
+Use this when the user gives a PDF/document and wants the agent to **read it
+and write notes** (not extract agent skills). The pipeline auto-decides the
+note discipline from the document itself.
+
+### Commands
+
+```bash
+# One shot: parse + classify + scaffold notes workspace.
+# Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
+~/.claude/skills/mineru/scripts/mineru-to-notes.sh /path/to/source.pdf \
+  --title "Source Title" \
+  --type auto \
+  --cloud-ok
+
+# Already have MinerU Markdown? Stage the notes pack directly:
+~/.claude/skills/mineru/scripts/reading-notes-pack.sh ./mineru-extracted/doc \
+  --title "Source Title" --type auto
+```
+
+### Classification (hybrid, autonomous)
+
+`scripts/lib/reading-types.sh` scores filename + parsed-Markdown structure into
+three buckets and a confidence band:
+
+| Type | Trigger signals | Note discipline |
+|------|-----------------|-----------------|
+| `book` | many `第N章`/`Chapter N`, TOC, ISBN, long page count | **chapter-by-chapter complete notes** |
+| `paper` | abstract, DOI/arXiv, references, related work, venue | **detailed structured reading / excerpt notes** |
+| `document` | API ref / install / config / report / spec / slides, short | **content-adaptive structured notes** |
+
+- High/medium confidence → the scaffold proceeds for that type.
+- **Low confidence → AI fallback**: the pack writes `AI_CLASSIFY.md` with a text
+  sample and a strict book/paper/document decision contract. The agent confirms
+  the type (Step 0) before reading; if it disagrees with the heuristic it
+  re-runs the packer with the correct `--type`.
+
+Manual override is always available with `--type book|paper|document`.
+
+### Output Contract
+
+```text
+reading-workspaces/sources/<slug>/
+  README.md
+  source/
+  mineru/parse_manifest.json + extracted Markdown
+  notes/reading-notes-pack/
+    classification.json        detected type / confidence / signals
+    AI_CLASSIFY.md             only when confidence is low
+    AI_READING_TASK.md         the reading contract (entry point)
+    OBSIDIAN_PLAN.md           exact vault target + house-style rules
+    manifest.json
+    source-markdown/
+    segments/                  chapter/section split (book & document)
+    notes/<slug>.md            scaffold from the matching template
+```
+
+Give the agent `AI_READING_TASK.md`. It reads `source-markdown/` (and
+`segments/` for books/documents), fills `notes/<slug>.md` using the
+type-specific template, passes a quality self-check (> 2KB real synthesis,
+evidence anchors, `[[wikilinks]]`, no placeholders), then writes the final
+note into the Obsidian vault path from `OBSIDIAN_PLAN.md` and appends a
+`log.md` line.
+
+### Obsidian Knowledge-Hub Boundary
+
+The vault target folder is `book → Books/`, `paper → Papers/`,
+`document → Documents/`. Vault root defaults to `$MINERU_OBSIDIAN_VAULT` or
+`~/Documents/Obsidian-Vaults/Knowledge-Hub` and is overridable with `--vault`.
+The scripts **never create or modify a vault file** — the agent writes the
+note after the quality self-check, matching the house style of an existing
+sibling note. Generated packs store no API tokens, auth headers, or remote
+result URLs.
+
 ## Vivo Agent Workflow
 
 Use this when the user gives text or source metadata and wants Codex, Claude
@@ -327,7 +427,7 @@ TOKEN = open("~/.config/mineru/token").read().strip()
 BASE = "https://mineru.net/api/v4"
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
-def parse_document(url, model="hybrid", ocr=False, extra_formats=None):
+def parse_document(url, model="vlm", ocr=False, extra_formats=None):
     """Parse a document from URL, return download link."""
     body = {
         "url": url, "model_version": model,
@@ -358,7 +458,7 @@ TOKEN=$(cat ~/.config/mineru/token)
 curl -s -X POST "https://mineru.net/api/v4/extract/task" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/doc.pdf","model_version":"hybrid"}'
+  -d '{"url":"https://example.com/doc.pdf","model_version":"vlm"}'
 
 # Check result
 curl -s "https://mineru.net/api/v4/extract/task/{task_id}" \

@@ -23,7 +23,7 @@ def load_token():
     return open(TOKEN_FILE).read().strip()
 
 
-def batch_parse(urls, model="hybrid"):
+def batch_parse(urls, model="vlm"):
     """Submit multiple URLs for parsing and wait for all results."""
     token = load_token()
     headers = {"Authorization": f"Bearer {token}"}

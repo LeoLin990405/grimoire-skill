@@ -8,7 +8,7 @@ INPUT="${1:?Usage: $0 <file_path>}"
 echo "=== Upload and parse local file ==="
 "$SCRIPT_DIR/scripts/mineru-parse.sh" \
     "$INPUT" \
-    --model hybrid \
+    --model vlm \
     --ocr \
     --output /tmp/mineru-local \
     --extract

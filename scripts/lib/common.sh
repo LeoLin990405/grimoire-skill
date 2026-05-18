@@ -31,7 +31,25 @@ safe_remove_dir() {
     local path="$1"
 
     case "$path" in
-        ""|"/"|"."|".."|"./"|"/."|"/.."|~|"$HOME") error "Refusing to replace unsafe path: $path" ;;
+        ""|"/"|"."|".."|"./"|"/."|"/.."|"~"|"$HOME") error "Refusing to replace unsafe path: $path" ;;
     esac
-    rm -rf "$path"
+
+    # Absolutize (BSD-safe; macOS has no `realpath -m`).
+    local abs="$path"
+    [[ "$abs" != /* ]] && abs="$PWD/$abs"
+
+    # Reject shallow paths: must be at least two components deep, so a stray
+    # empty/odd slug from --output can never escalate to "/" or "/foo".
+    local trimmed="${abs#/}"; trimmed="${trimmed%/}"
+    case "$trimmed" in
+        */*) : ;;
+        *) error "Refusing to remove shallow path: $abs" ;;
+    esac
+
+    # Never remove HOME, the repo, or any ancestor of the current directory.
+    [[ "$abs" == "$HOME" ]] && error "Refusing to remove HOME: $abs"
+    case "$PWD/" in "$abs"/*) error "Refusing to remove an ancestor of CWD: $abs" ;; esac
+    case "$HOME/" in "$abs"/*) error "Refusing to remove an ancestor of HOME: $abs" ;; esac
+
+    rm -rf "$abs"
 }
