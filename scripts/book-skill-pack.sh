@@ -26,7 +26,8 @@ Options:
   --slug <slug>      Output directory slug. Defaults to a sanitized title.
   --agent <name>     Agent name to use in generated prompts. Default: Agent.
   --type <type>      Source type: auto, book, course, paper, manual,
-                    article-collection, or project-notes. Default: auto.
+                    article-collection, project-notes, video, web, or mixed.
+                    Default: auto.
   --output <dir>     Parent output directory. Default: ./book-skill-packs
   --force            Replace an existing pack directory.
   -h, --help         Show this help.
@@ -38,6 +39,7 @@ Output:
     LLM_EXTRACTION_PROMPT.md
     BOOK_SKILL_INDEX.md
     MANAGE_SKILLS.md
+    MINDMAP.md
     source-markdown/
     segments/
     chapter-skills/
@@ -99,6 +101,9 @@ source_unit_label() {
         manual) printf '%s' "Section" ;;
         article-collection) printf '%s' "Article" ;;
         project-notes) printf '%s' "Note" ;;
+        video) printf '%s' "Segment" ;;
+        web) printf '%s' "Section" ;;
+        mixed) printf '%s' "Source" ;;
         *) printf '%s' "Section" ;;
     esac
 }
@@ -116,6 +121,15 @@ boundary_keywords() {
             ;;
         article-collection)
             printf '%s' "article|essay|post|newsletter|part"
+            ;;
+        video)
+            printf '%s' "chapter|segment|timestamp|transcript|topic|section|part"
+            ;;
+        web)
+            printf '%s' "overview|introduction|background|guide|steps?|workflow|examples?|faq|summary|section"
+            ;;
+        mixed)
+            printf '%s' "chapter|chap\\.?|part|section|lesson|module|unit|week|abstract|introduction|overview|methodology|installation|transcript|article|topic|summary"
             ;;
         *)
             printf '%s' "chapter|chap\\.?|part|section|lesson|module|unit|week"
@@ -211,7 +225,7 @@ done
 [[ -e "$SOURCE" ]] || error "Source not found: $SOURCE"
 
 case "$SOURCE_TYPE" in
-    auto|book|course|paper|manual|article-collection|project-notes) ;;
+    auto|book|course|paper|manual|article-collection|project-notes|video|web|mixed) ;;
     *) error "Unsupported source type: $SOURCE_TYPE" ;;
 esac
 
@@ -433,6 +447,54 @@ Explain how the extracted segment skills fit together as a source-scoped package
 List useful concepts that should remain source-scoped references.
 EOF
 
+cat > "$PACK_DIR/MINDMAP.md" <<EOF
+# $TITLE - Source Mindmap
+
+Fill this as a hierarchical map before final skill promotion. Keep it compact
+and operational: the map should show how source topics become reusable skills.
+
+## Root
+
+- $TITLE
+  - Source type: $DETECTED_SOURCE_TYPE
+  - Target agent: $AGENT_NAME
+  - Core capability:
+
+## Structure Map
+
+Use \`segments/manifest.json\` as the canonical order.
+
+| Segment | Main ideas | Candidate skill families | Reference-only concepts |
+|---|---|---|---|
+EOF
+
+while IFS=$'\t' read -r segment_file segment_title; do
+    [[ -n "$segment_file" ]] || continue
+    printf '| %s |  |  |  |\n' "$segment_title" >> "$PACK_DIR/MINDMAP.md"
+done < "$SEGMENT_TSV"
+
+cat >> "$PACK_DIR/MINDMAP.md" <<EOF
+
+## Skill Creation Map
+
+- Managed skill candidates
+  -
+- Source-pack-only skills
+  -
+- Reference-only material
+  -
+
+## Topic Classification
+
+Use this section to classify a course, video series, book, paper, or web source
+into stable skill domains. Prefer domains that can become folders or packages in
+a managed skill registry.
+
+| Topic | Subtopic | Evidence segments | Candidate skills |
+|---|---|---|---|
+|  |  |  |  |
+EOF
+
 jq -n \
     --arg title "$TITLE" \
     --arg slug "$SLUG" \
@@ -459,6 +521,7 @@ jq -n \
       status: "staged_for_llm_extraction",
       expected_outputs: [
         "BOOK_SKILL_INDEX.md",
+        "MINDMAP.md",
         "segments/manifest.json",
         "chapter-skills/*/CHAPTER_SKILL_INDEX.md",
         "chapter-skills/*/skills/*.md",
@@ -494,6 +557,7 @@ The model should answer:
 
 - \`source-markdown/\`: copied MinerU Markdown files.
 - \`segments/\`: generated chapter/lesson/section files and \`manifest.json\`.
+- \`MINDMAP.md\`: source structure map for turning topics into skill families.
 - \`chapter-skills/\`: one extraction workspace per segment.
 - \`whole-book/WHOLE_BOOK_SUMMARY.md\`: whole-source synthesis template, filled after segment extraction.
 - \`BOOK_SKILL_INDEX.md\`: source-level summary and skill index template.
@@ -598,9 +662,10 @@ The final answer must make it clear:
    matching \`chapter-skills/<segment>/skills/\` directory.
 4. Only after segment-level extraction is complete, fill
    \`whole-book/WHOLE_BOOK_SUMMARY.md\`.
-5. Fill \`BOOK_SKILL_INDEX.md\` from the segment indexes and whole-source
+5. Fill \`MINDMAP.md\` to map source topics into candidate skill families.
+6. Fill \`BOOK_SKILL_INDEX.md\` from the segment indexes and whole-source
    synthesis.
-6. Copy or rewrite only reviewed cross-segment candidates into root \`skills/\`.
+7. Copy or rewrite only reviewed cross-segment candidates into root \`skills/\`.
 
 ## Required Outputs
 
@@ -626,7 +691,11 @@ Update or create these files:
    - Fill "Skill Candidates By Source".
    - Fill "Non-Skill Reference Material".
 
-5. \`skills/<short-skill-slug>.md\`
+5. \`MINDMAP.md\`
+   - Fill topic classification and skill-family mapping.
+   - Use this to decide package structure for managed skills.
+
+6. \`skills/<short-skill-slug>.md\`
    - Optional root-level promoted candidates only.
    - Use this only after review-worthy cross-segment candidates are clear.
 
@@ -767,8 +836,9 @@ A skill manager or agent team should consume this pack in this order:
 3. \`chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\`: review segment-level candidates.
 4. \`chapter-skills/<segment>/skills/*.md\`: review individual draft skills.
 5. \`whole-book/WHOLE_BOOK_SUMMARY.md\`: read final source-level synthesis.
-6. \`BOOK_SKILL_INDEX.md\`: read the final index and promotion recommendations.
-7. \`skills/*.md\`: promote only deliberately reviewed cross-segment skills.
+6. \`MINDMAP.md\`: read topic and skill-family classification.
+7. \`BOOK_SKILL_INDEX.md\`: read the final index and promotion recommendations.
+8. \`skills/*.md\`: promote only deliberately reviewed cross-segment skills.
 
 ## Boundary With skills-mgr
 

@@ -222,6 +222,7 @@ book-workspaces/
                 ├── LLM_EXTRACTION_PROMPT.md
                 ├── BOOK_SKILL_INDEX.md
                 ├── MANAGE_SKILLS.md
+                ├── MINDMAP.md
                 ├── source-markdown/
                 ├── segments/
                 │   ├── manifest.json
@@ -235,11 +236,13 @@ book-workspaces/
                 └── skills/
 ```
 
-Give `LLM_EXTRACTION_PROMPT.md`, `segments/`, and `chapter-skills/` to a large language model. The model should fill:
+Give `LLM_EXTRACTION_PROMPT.md`, `segments/`, and `chapter-skills/` to the
+active agent. The agent should fill:
 
 - `chapter-skills/*/CHAPTER_SKILL_INDEX.md`: what each segment contributes before whole-source synthesis.
 - `chapter-skills/*/skills/*.md`: one narrow candidate skill per segment-level capability.
 - `whole-book/WHOLE_BOOK_SUMMARY.md`: source-level capability summary after segment extraction.
+- `MINDMAP.md`: topic classification and skill-family map.
 - `BOOK_SKILL_INDEX.md`: what this source can help the agent do, when to reference it, and a table of skill candidates.
 - `skills/*.md`: reviewed cross-segment candidates only, using the generated `_skill-template.md`.
 
@@ -270,10 +273,40 @@ The generated pack must not store API tokens, authorization headers, remote resu
 ### Source Type Classification
 
 Use `--type auto` by default. The packer records detected type metadata for
-books, courses, papers, manuals, article collections, and project notes. Override
-with `--type book`, `--type course`, `--type paper`, `--type manual`,
-`--type article-collection`, or `--type project-notes` when the automatic
-classifier is wrong.
+books, courses, papers, manuals, article collections, videos, web sources,
+mixed source sets, and project notes. Override with `--type book`,
+`--type course`, `--type paper`, `--type manual`, `--type article-collection`,
+`--type video`, `--type web`, `--type mixed`, or `--type project-notes` when the
+automatic classifier is wrong.
+
+## Vivo Agent Workflow
+
+Use this when the user wants Codex, Claude Code, or another agent to collect
+knowledge from web pages, videos, PDFs, courses, books, or existing notes and
+distill it into candidate skills.
+
+```bash
+~/.claude/skills/mineru/scripts/vivo-agent-workspace.sh \
+  --title "Knowledge Source" \
+  --type mixed \
+  --agent "Claude Code" \
+  --output ./vivo-workspaces
+```
+
+Vivo creates `AGENT_TASK.md`, `SOURCES.md`, `notes/live-notes.md`,
+`notes/topic-classification.md`, `captured-markdown/`, and `packs/`. The script
+does not call OpenAI, Claude, or any model. The active agent performs capture
+and reasoning with its available tools:
+
+- web pages: browser, fetch, web search, or OpenAI-backed web capability
+- videos: subtitles or transcript tools
+- PDFs: MinerU parsing or another local converter
+- courses: lesson/module/topic classification
+- notes: simultaneous durable notes while capture happens
+
+After capture, the agent runs `book-skill-pack.sh` over `captured-markdown/` and
+fills segment skills, `whole-book/WHOLE_BOOK_SUMMARY.md`, `MINDMAP.md`, and
+`BOOK_SKILL_INDEX.md` before promoting reviewed candidates.
 
 ## Quick Parse (Python)
 

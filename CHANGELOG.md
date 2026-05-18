@@ -16,13 +16,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Chapter/lesson/section segmentation under `segments/`.
 - Segment-first extraction workspaces under `chapter-skills/`.
 - Whole-source synthesis template at `whole-book/WHOLE_BOOK_SUMMARY.md`.
+- Mindmap template at `MINDMAP.md` for topic-to-skill-family classification.
 - Manage-skills consumption contract for reviewing segment drafts before promotion.
 - Open-source skill manager reference notes in `docs/open-source-skill-manager-references.md`.
+- Vivo agent workspace generator at `scripts/vivo-agent-workspace.sh`.
+- Vivo agent-operated workflow documentation in `docs/vivo-agent-workflow.md`.
 
 ### Changed
 - Documented the privacy boundary for book uploads through the MinerU cloud API.
 - Documented that generated long-form skill packs are candidates and are not automatically installed or enabled.
 - Promoted chapter-level extraction, whole-source synthesis, source-structured skill packaging, and text-type classification from roadmap notes into the staged output contract.
+- Clarified that Vivo capture and reasoning are performed by Codex/Claude-style agents, not by a hidden model call inside the scripts.
 
 ## [1.1.0] - 2026-03-16
 

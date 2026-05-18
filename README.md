@@ -140,9 +140,9 @@ mineru-parse.sh <url_or_file> [options]
 
 The workflow prepares a parsed long-form source for a large language model. It
 now stages source-type metadata, chapter/section segmentation, segment-level
-skill extraction workspaces, and a whole-source synthesis template. It does
-**not** call an LLM and does **not** install or enable generated skills
-automatically.
+skill extraction workspaces, a mindmap template, and a whole-source synthesis
+template. It does **not** call an LLM and does **not** install or enable
+generated skills automatically.
 
 ```bash
 # Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
@@ -172,6 +172,7 @@ book-workspaces/
                 ├── LLM_EXTRACTION_PROMPT.md
                 ├── BOOK_SKILL_INDEX.md
                 ├── MANAGE_SKILLS.md
+                ├── MINDMAP.md
                 ├── source-markdown/
                 ├── segments/
                 │   ├── manifest.json
@@ -185,10 +186,10 @@ book-workspaces/
                 └── skills/
 ```
 
-Give `LLM_EXTRACTION_PROMPT.md`, `segments/`, and `chapter-skills/` to a model.
+Give `LLM_EXTRACTION_PROMPT.md`, `segments/`, and `chapter-skills/` to an agent.
 The model should extract skills segment by segment first, then fill
-`whole-book/WHOLE_BOOK_SUMMARY.md`, `BOOK_SKILL_INDEX.md`, and only then copy or
-rewrite reviewed cross-segment candidates under root `skills/`.
+`whole-book/WHOLE_BOOK_SUMMARY.md`, `MINDMAP.md`, `BOOK_SKILL_INDEX.md`, and
+only then copy or rewrite reviewed cross-segment candidates under root `skills/`.
 
 Expected model output is source-scoped:
 
@@ -219,9 +220,33 @@ skills enable <promoted-skill-name>
 ### Source Type Classification
 
 Use `--type auto` by default. The packer records detected type metadata for
-books, courses, papers, manuals, article collections, and project notes. Manual
-override is supported with `--type book`, `--type course`, `--type paper`,
-`--type manual`, `--type article-collection`, or `--type project-notes`.
+books, courses, papers, manuals, article collections, videos, web sources,
+mixed source sets, and project notes. Manual override is supported with
+`--type book`, `--type course`, `--type paper`, `--type manual`,
+`--type article-collection`, `--type video`, `--type web`, `--type mixed`, or
+`--type project-notes`.
+
+## Vivo Agent Workflow
+
+Vivo is the agent-operated layer on top of the source-to-skill pack. It creates
+a workspace where Codex, Claude Code, or another capable agent captures web
+pages, video subtitles, PDFs, courses, books, and notes, while writing durable
+notes in parallel.
+
+```bash
+./scripts/vivo-agent-workspace.sh \
+  --title "Course Or Knowledge Source" \
+  --type mixed \
+  --agent "Codex" \
+  --output ./vivo-workspaces
+```
+
+The agent receives `AGENT_TASK.md`, fills `SOURCES.md`, writes running notes in
+`notes/live-notes.md`, normalizes captured content into `captured-markdown/`,
+then runs `book-skill-pack.sh` to create the structured pack. Vivo itself does
+not call OpenAI or Claude directly; the active agent runtime performs web
+capture, transcript retrieval, PDF conversion, topic classification, mindmap
+synthesis, and skill drafting with its available tools.
 
 ## Examples
 
@@ -240,14 +265,16 @@ mineru-skill/
 ├── scripts/
 │   ├── mineru-parse.sh      # CLI helper script
 │   ├── mineru-book-to-skill.sh # Long-form parsing + skill-pack staging wrapper
-│   └── book-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
+│   ├── book-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
+│   └── vivo-agent-workspace.sh # Create an agent-operated Vivo workspace
 ├── examples/
 │   ├── parse_single.sh      # Single URL parsing example
 │   ├── parse_local.sh       # Local file parsing example
 │   ├── parse_batch.py       # Batch processing example (Python)
 │   └── book_to_skill.sh     # Long-form source-to-skill workspace example
 ├── docs/
-│   └── open-source-skill-manager-references.md
+│   ├── open-source-skill-manager-references.md
+│   └── vivo-agent-workflow.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # Bug report & feature request templates
 │   └── PULL_REQUEST_TEMPLATE.md
@@ -263,6 +290,8 @@ Full API reference including all endpoints, request/response formats, error code
 
 Open-source skill manager references used for the manage-skills design are in
 **[docs/open-source-skill-manager-references.md](docs/open-source-skill-manager-references.md)**.
+The Vivo agent-operated workflow is documented in
+**[docs/vivo-agent-workflow.md](docs/vivo-agent-workflow.md)**.
 
 ## Contributing
 
