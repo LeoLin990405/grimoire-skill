@@ -7,19 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
-- Book-to-skill first iteration with `scripts/mineru-book-to-skill.sh`.
-- `scripts/book-skill-pack.sh` for staging parsed Markdown as an LLM-ready long-form skill pack.
+- Source-to-skill first iteration with `scripts/mineru-source-to-skill.sh`.
+- `scripts/source-skill-pack.sh` for staging parsed Markdown as an LLM-ready long-form skill pack.
+- Compatibility wrappers: `scripts/mineru-book-to-skill.sh`, `scripts/book-skill-pack.sh`, and `scripts/vivo-agent-workspace.sh`.
+- Shared shell libraries under `scripts/lib/` for common helpers and source type rules.
 - `examples/book_to_skill.sh` end-to-end example.
 - Long-form skill pack outputs: `LLM_EXTRACTION_PROMPT.md`, `BOOK_SKILL_INDEX.md`, `MANAGE_SKILLS.md`, `manifest.json`, `source-markdown/`, and `skills/`.
 - `--manifest` and `--no-print-md` options for `mineru-parse.sh`.
-- Long-form source type metadata with `--type auto|book|course|paper|manual|article-collection|project-notes`.
+- Long-form source type metadata with `--type auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed`.
 - Chapter/lesson/section segmentation under `segments/`.
 - Segment-first extraction workspaces under `chapter-skills/`.
 - Whole-source synthesis template at `whole-book/WHOLE_BOOK_SUMMARY.md`.
 - Mindmap template at `MINDMAP.md` for topic-to-skill-family classification.
 - Manage-skills consumption contract for reviewing segment drafts before promotion.
 - Open-source skill manager reference notes in `docs/open-source-skill-manager-references.md`.
-- Vivo agent workspace generator at `scripts/vivo-agent-workspace.sh`.
+- Vivo agent workspace generator at `scripts/vivo-workspace.sh`.
 - Vivo agent-operated workflow documentation in `docs/vivo-agent-workflow.md`.
 - Source type confirmation and typed note templates under `templates/vivo/`.
 - `scripts/vivo-note-template.sh` for installing type-specific note templates into a Vivo workspace.
@@ -27,7 +29,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Audio source type support for transcript-based workflows.
 
 ### Changed
-- Documented the privacy boundary for book uploads through the MinerU cloud API.
+- Refactored primary command names and workspace paths from book-first to source-first.
+- Documented the privacy boundary for local source uploads through the MinerU cloud API.
 - Documented that generated long-form skill packs are candidates and are not automatically installed or enabled.
 - Promoted chapter-level extraction, whole-source synthesis, source-structured skill packaging, and text-type classification from roadmap notes into the staged output contract.
 - Clarified that Vivo capture and reasoning are performed by Codex/Claude-style agents, not by a hidden model call inside the scripts.

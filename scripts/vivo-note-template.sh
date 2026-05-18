@@ -6,6 +6,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMPLATE_ROOT="$REPO_ROOT/templates/vivo"
+# shellcheck source=lib/common.sh
+source "$SCRIPT_DIR/lib/common.sh"
+# shellcheck source=lib/source-types.sh
+source "$SCRIPT_DIR/lib/source-types.sh"
 
 WORKSPACE=""
 SOURCE_TYPE=""
@@ -29,26 +33,6 @@ EOF
     exit 0
 }
 
-error() {
-    echo "Error: $*" >&2
-    exit 1
-}
-
-template_for_type() {
-    case "$1" in
-        book) printf '%s' "book-chapter-note.md" ;;
-        paper) printf '%s' "paper-reading-note.md" ;;
-        course) printf '%s' "course-lesson-note.md" ;;
-        video) printf '%s' "video-transcript-note.md" ;;
-        audio) printf '%s' "audio-transcript-note.md" ;;
-        web) printf '%s' "web-article-note.md" ;;
-        manual) printf '%s' "manual-spec-note.md" ;;
-        project-notes) printf '%s' "project-notes-note.md" ;;
-        mixed|auto) printf '%s' "mixed-source-note.md" ;;
-        *) error "Unsupported note template type: $1" ;;
-    esac
-}
-
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
@@ -63,6 +47,7 @@ done
 
 [[ -n "$WORKSPACE" ]] || error "--workspace is required"
 [[ -n "$SOURCE_TYPE" ]] || error "--type is required"
+validate_source_type "$SOURCE_TYPE"
 [[ -d "$WORKSPACE" ]] || error "Workspace not found: $WORKSPACE"
 [[ -d "$TEMPLATE_ROOT" ]] || error "Template directory not found: $TEMPLATE_ROOT"
 
@@ -70,7 +55,7 @@ mkdir -p "$WORKSPACE/notes"
 
 confirm_dest="$WORKSPACE/notes/source-type-confirmation.md"
 coverage_dest="$WORKSPACE/notes/skill-discovery-coverage.md"
-note_dest="$WORKSPACE/notes/$(template_for_type "$SOURCE_TYPE")"
+note_dest="$WORKSPACE/notes/$(note_template_for_type "$SOURCE_TYPE")"
 
 copy_template() {
     local src="$1" dest="$2"
@@ -83,7 +68,7 @@ copy_template() {
 
 copy_template "$TEMPLATE_ROOT/source-type-confirmation.md" "$confirm_dest"
 copy_template "$TEMPLATE_ROOT/skill-discovery-coverage.md" "$coverage_dest"
-copy_template "$TEMPLATE_ROOT/notes/$(template_for_type "$SOURCE_TYPE")" "$note_dest"
+copy_template "$TEMPLATE_ROOT/notes/$(note_template_for_type "$SOURCE_TYPE")" "$note_dest"
 
 if [[ -n "$TITLE" ]]; then
     printf '\n<!-- Title hint: %s -->\n' "$TITLE" >> "$note_dest"

@@ -188,27 +188,31 @@ skills can be extracted from it.
 
 ```bash
 # Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
-~/.claude/skills/mineru/scripts/mineru-book-to-skill.sh /path/to/book.pdf \
+~/.claude/skills/mineru/scripts/mineru-source-to-skill.sh /path/to/book.pdf \
   --title "Book Title" \
   --type auto \
-  --output ./book-workspaces \
+  --output ./source-workspaces \
   --cloud-ok
 
-# If the book is already parsed to Markdown, stage a pack directly.
-~/.claude/skills/mineru/scripts/book-skill-pack.sh ./mineru-extracted/book \
+# If the source is already parsed to Markdown, stage a pack directly.
+~/.claude/skills/mineru/scripts/source-skill-pack.sh ./mineru-extracted/book \
   --title "Book Title" \
   --type auto \
-  --output ./book-skill-packs
+  --output ./source-skill-packs
 ```
+
+Compatibility wrappers are still available for older automation:
+`mineru-book-to-skill.sh`, `book-skill-pack.sh`, and
+`vivo-agent-workspace.sh`.
 
 ### Output Contract
 
 The wrapper creates a source-scoped workspace:
 
 ```text
-book-workspaces/
-└── books/
-    └── <book-slug>/
+source-workspaces/
+└── sources/
+    └── <source-slug>/
         ├── README.md
         ├── source/
         ├── mineru/
@@ -216,7 +220,7 @@ book-workspaces/
         │   ├── *_result.zip
         │   └── <extracted markdown files>
         └── analysis/
-            └── book-skill-pack/
+            └── source-skill-pack/
                 ├── README.md
                 ├── manifest.json
                 ├── LLM_EXTRACTION_PROMPT.md
@@ -276,8 +280,8 @@ Use `--type auto` by default. The packer records detected type metadata for
 books, courses, papers, manuals, article collections, videos, web sources,
 mixed source sets, and project notes. Override with `--type book`,
 `--type course`, `--type paper`, `--type manual`, `--type article-collection`,
-`--type video`, `--type web`, `--type mixed`, or `--type project-notes` when the
-automatic classifier is wrong.
+`--type video`, `--type audio`, `--type web`, `--type mixed`, or
+`--type project-notes` when the automatic classifier is wrong.
 
 ## Vivo Agent Workflow
 
@@ -287,7 +291,7 @@ notes, then distill candidate skills from books, papers, courses, web pages,
 videos, audio transcripts, PDFs, or existing notes.
 
 ```bash
-~/.claude/skills/mineru/scripts/vivo-agent-workspace.sh \
+~/.claude/skills/mineru/scripts/vivo-workspace.sh \
   --title "Knowledge Source" \
   --type mixed \
   --agent "Claude Code" \
@@ -307,7 +311,7 @@ capture and reasoning with its available tools:
 - courses: lesson/module/topic classification
 - notes: first source-type confirmation, then typed notes while capture happens
 
-After type confirmation and typed notes, the agent runs `book-skill-pack.sh`
+After type confirmation and typed notes, the agent runs `source-skill-pack.sh`
 over `captured-markdown/` and fills segment skills,
 `whole-book/WHOLE_BOOK_SUMMARY.md`, `MINDMAP.md`,
 `SKILL_DISCOVERY_COVERAGE.md`, and `BOOK_SKILL_INDEX.md` before promoting

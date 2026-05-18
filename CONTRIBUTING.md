@@ -35,7 +35,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 ### Prerequisites
 
-- `bash` 4.0+
+- `bash` 3.2+ (macOS system Bash compatible)
 - `curl`
 - `jq`
 - A MinerU API token (see [README](README.md#2-set-up-api-token))
@@ -44,7 +44,7 @@ Thanks for your interest in contributing! This guide will help you get started.
 
 ```bash
 # Verify script syntax
-bash -n scripts/mineru-parse.sh
+bash -n scripts/*.sh scripts/lib/*.sh
 
 # Run with --help
 ./scripts/mineru-parse.sh --help

@@ -80,8 +80,8 @@ Extract tables from report.pdf using the vlm model with OCR
 # Extra output formats
 ./scripts/mineru-parse.sh slides.pptx --format docx --format html
 
-# Turn a book into an LLM-ready skill extraction workspace
-./scripts/mineru-book-to-skill.sh book.pdf --title "My Book" --output ./workspaces --cloud-ok
+# Turn a long-form source into an LLM-ready skill extraction workspace
+./scripts/mineru-source-to-skill.sh book.pdf --title "My Book" --output ./workspaces --cloud-ok
 ```
 
 ## CLI Reference
@@ -146,18 +146,18 @@ generated skills automatically.
 
 ```bash
 # Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
-./scripts/mineru-book-to-skill.sh ~/Books/example.pdf \
+./scripts/mineru-source-to-skill.sh ~/Books/example.pdf \
   --title "Example Book" \
   --type auto \
-  --output ./book-workspaces \
+  --output ./source-workspaces \
   --cloud-ok
 ```
 
 The wrapper creates:
 
 ```
-book-workspaces/
-└── books/
+source-workspaces/
+└── sources/
     └── example-book/
         ├── README.md
         ├── source/
@@ -166,7 +166,7 @@ book-workspaces/
         │   ├── *_result.zip
         │   └── <extracted markdown files>
         └── analysis/
-            └── book-skill-pack/
+            └── source-skill-pack/
                 ├── README.md
                 ├── manifest.json
                 ├── LLM_EXTRACTION_PROMPT.md
@@ -223,8 +223,23 @@ Use `--type auto` by default. The packer records detected type metadata for
 books, courses, papers, manuals, article collections, videos, web sources,
 mixed source sets, and project notes. Manual override is supported with
 `--type book`, `--type course`, `--type paper`, `--type manual`,
-`--type article-collection`, `--type video`, `--type web`, `--type mixed`, or
-`--type project-notes`.
+`--type article-collection`, `--type video`, `--type audio`, `--type web`,
+`--type mixed`, or `--type project-notes`.
+
+### Compatibility Aliases
+
+The primary commands are now source-oriented:
+
+- `scripts/mineru-source-to-skill.sh`
+- `scripts/source-skill-pack.sh`
+- `scripts/vivo-workspace.sh`
+
+The older book/Vivo command names remain as thin wrappers for existing
+automation:
+
+- `scripts/mineru-book-to-skill.sh`
+- `scripts/book-skill-pack.sh`
+- `scripts/vivo-agent-workspace.sh`
 
 ## Vivo Agent Workflow
 
@@ -236,7 +251,7 @@ project note, or mixed source set. Only then does the agent write the matching
 typed notes and start skill discovery.
 
 ```bash
-./scripts/vivo-agent-workspace.sh \
+./scripts/vivo-workspace.sh \
   --title "Course Or Knowledge Source" \
   --type mixed \
   --agent "Codex" \
@@ -246,7 +261,7 @@ typed notes and start skill discovery.
 The agent receives `AGENT_TASK.md`, fills `notes/source-type-confirmation.md`,
 selects a note template, writes running notes in `notes/live-notes.md`,
 normalizes captured content into `captured-markdown/`, then runs
-`book-skill-pack.sh` to create the structured pack. Vivo itself does not call
+`source-skill-pack.sh` to create the structured pack. Vivo itself does not call
 OpenAI or Claude directly; the active agent runtime performs web capture,
 transcript retrieval, PDF conversion, topic classification, mindmap synthesis,
 and repeated skill discovery with its available tools. Future opencli adapters
@@ -269,9 +284,13 @@ mineru-skill/
 ├── SKILL.md                 # Claude Code skill definition (full API reference)
 ├── scripts/
 │   ├── mineru-parse.sh      # CLI helper script
-│   ├── mineru-book-to-skill.sh # Long-form parsing + skill-pack staging wrapper
-│   ├── book-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
-│   ├── vivo-agent-workspace.sh # Create an agent-operated Vivo workspace
+│   ├── mineru-source-to-skill.sh # Long-form parsing + skill-pack staging wrapper
+│   ├── source-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
+│   ├── vivo-workspace.sh    # Create an agent-operated Vivo workspace
+│   ├── mineru-book-to-skill.sh # Compatibility wrapper
+│   ├── book-skill-pack.sh   # Compatibility wrapper
+│   ├── vivo-agent-workspace.sh # Compatibility wrapper
+│   ├── lib/                 # Shared shell helpers and source type rules
 │   └── vivo-note-template.sh # Install typed note templates into a Vivo workspace
 ├── templates/
 │   └── vivo/                # Source type confirmation and typed note templates

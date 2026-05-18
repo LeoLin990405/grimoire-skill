@@ -53,7 +53,7 @@ The agent uses whatever tools are available in its runtime:
 Create a workspace:
 
 ```bash
-./scripts/vivo-agent-workspace.sh \
+./scripts/vivo-workspace.sh \
   --title "Course Or Knowledge Source" \
   --type mixed \
   --agent "Codex" \
@@ -67,8 +67,10 @@ AGENT_TASK.md
 SOURCES.md
 manifest.json
 notes/
+  source-type-confirmation.md
   live-notes.md
   topic-classification.md
+  skill-discovery-coverage.md
 inbox/
   web/
   video/
@@ -86,7 +88,7 @@ After source type confirmation and typed notes are written, the agent captures
 or normalizes source text into `captured-markdown/`, then runs:
 
 ```bash
-./scripts/book-skill-pack.sh <workspace>/captured-markdown \
+./scripts/source-skill-pack.sh <workspace>/captured-markdown \
   --title "Course Or Knowledge Source" \
   --type mixed \
   --agent "Codex" \
@@ -103,6 +105,10 @@ The agent then fills generated files in this order:
 5. `SKILL_DISCOVERY_COVERAGE.md`
 6. `BOOK_SKILL_INDEX.md`
 7. root `skills/*.md` only for reviewed cross-source candidates
+
+The source-oriented command names are canonical. Older names
+`vivo-agent-workspace.sh` and `book-skill-pack.sh` remain compatibility
+wrappers.
 
 ## Notes Rule
 
