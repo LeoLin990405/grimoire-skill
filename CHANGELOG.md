@@ -7,6 +7,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Grimoire — unified pipeline + repositioning.** New primary entry point
+  `scripts/grimoire.sh`: one MinerU parse → one workspace holding BOTH the
+  type-specific reading notes AND a per-source skill pack, with a single
+  agent contract (`GRIMOIRE_TASK.md`) that has the agent write the note and
+  mine skills for the same segment in one reading pass. Both halves share
+  one segmentation (`lib/segment.sh`); skills merge per book/course and stay
+  candidates until reviewed. `--only both|notes|skills`, `GRIMOIRE_PARSER`
+  override for local-MinerU/offline.
+- The project is rebranded from a MinerU-API skill to **Grimoire (魔典)**, a
+  document → notes + skill-pack knowledge tool. `SKILL.md` `name: grimoire`,
+  new bilingual creative `README.md`. Standalone `mineru-to-notes.sh` /
+  `mineru-source-to-skill.sh` remain functional (no regression).
 - **Source-to-notes pipeline**: `scripts/mineru-to-notes.sh` (parse +
   auto-classify + scaffold) and `scripts/reading-notes-pack.sh` (build a
   reading-notes pack from Markdown).

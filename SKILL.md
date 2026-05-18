@@ -1,28 +1,39 @@
 ---
-name: mineru
-description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula/table extraction, batch processing, staging parsed long-form sources for LLM skill extraction, and auto-classified reading notes (book/paper/document) into an Obsidian vault.
+name: grimoire
+description: Grimoire — turn a PDF/document into reading notes + a reusable skill pack in one parse. Auto-classifies book/paper/document, scaffolds type-specific notes for an Obsidian vault, and mines per-source skills merged per book/course. Built on the MinerU parsing API (OCR, formula/table, batch). Scripts never call an LLM, never write the vault, never install skills — the agent does.
 triggers:
+  - grimoire
+  - 魔典
+  - 把这本书炼成魔典
+  - pdf 转笔记
+  - pdf to notes
+  - 帮我读这个 pdf
+  - 帮我读这个 pdf 写笔记并提炼 skill
+  - 读书笔记
+  - 论文笔记
+  - 文档笔记
+  - 这个 pdf 是书还是论文
+  - reading notes
+  - book to skill
+  - 书籍转 skill
+  - 从书中提炼 skill
+  - 技能提炼
   - mineru
   - pdf解析
   - 文档解析
   - document parsing
   - pdf to markdown
   - extract pdf
-  - book to skill
-  - 书籍转 skill
-  - 从书中提炼 skill
-  - 技能提炼
-  - pdf 转笔记
-  - pdf to notes
-  - 读书笔记
-  - 论文笔记
-  - 文档笔记
-  - 这个 pdf 是书还是论文
-  - 帮我读这个 pdf
-  - reading notes
 ---
 
-# MinerU API Skill
+# Grimoire · 魔典 — Document → Notes + Skill Pack
+
+> One source, parsed once, woven into typed reading notes (→ Obsidian) and a
+> per-source skill pack. Primary entry point: `scripts/grimoire.sh`.
+> Full product overview and bilingual docs: see [README.md](README.md).
+>
+> The sections below are the underlying MinerU parsing API reference that the
+> `grimoire` toolchain is built on.
 
 ## Overview
 MinerU converts PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML into machine-readable Markdown/JSON. Supports OCR (109 languages), formula/table recognition, cross-page table merging, and batch processing.
