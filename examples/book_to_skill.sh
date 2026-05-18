@@ -10,7 +10,7 @@ TITLE="${2:-}"
 
 echo "=== Parse book and build skill extraction workspace ==="
 
-args=("$INPUT" --output /tmp/mineru-book-workspaces --force)
+args=("$INPUT" --output /tmp/mineru-book-workspaces --force --type auto)
 if [[ -n "$TITLE" ]]; then
     args+=(--title "$TITLE")
 fi

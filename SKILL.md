@@ -1,6 +1,6 @@
 ---
 name: mineru
-description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula recognition, table extraction, batch processing, and staging parsed books for LLM skill extraction.
+description: MinerU document parsing API - convert PDF/DOC/PPT/images to Markdown/JSON. Supports OCR, formula recognition, table extraction, batch processing, and staging parsed long-form sources for LLM skill extraction.
 triggers:
   - mineru
   - pdf解析
@@ -19,7 +19,11 @@ triggers:
 ## Overview
 MinerU converts PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML into machine-readable Markdown/JSON. Supports OCR (109 languages), formula/table recognition, cross-page table merging, and batch processing.
 
-This skill can also stage a parsed book as a **book skill pack**: a workspace that a large language model can read to extract candidate agent skills, grouped by source book. The first iteration does not call an LLM and does not install generated skills automatically.
+This skill can also stage a parsed long-form source as a **source skill pack**:
+a workspace that a large language model can read to extract candidate agent
+skills, grouped by source first and then by chapter, lesson, section, or note.
+The workflow does not call an LLM and does not install generated skills
+automatically.
 
 **Two modes:**
 - **Cloud API** — `https://mineru.net/api/v4` (no GPU required, token-based)
@@ -174,9 +178,11 @@ mineru-parse.sh doc.pdf --output ./results --extract
 mineru-parse.sh book.pdf --output ./results --extract --no-print-md --manifest ./results/parse_manifest.json
 ```
 
-## Book-to-Skill Workflow
+## Source-to-Skill Workflow
 
-Use this when the user uploads a book and wants the agent to learn which reusable skills can be extracted from it.
+Use this when the user uploads a book, course, paper, manual, article
+collection, or other long-form text and wants the agent to learn which reusable
+skills can be extracted from it.
 
 ### Commands
 
@@ -184,18 +190,20 @@ Use this when the user uploads a book and wants the agent to learn which reusabl
 # Local files are uploaded to the MinerU cloud API; --cloud-ok is required.
 ~/.claude/skills/mineru/scripts/mineru-book-to-skill.sh /path/to/book.pdf \
   --title "Book Title" \
+  --type auto \
   --output ./book-workspaces \
   --cloud-ok
 
 # If the book is already parsed to Markdown, stage a pack directly.
 ~/.claude/skills/mineru/scripts/book-skill-pack.sh ./mineru-extracted/book \
   --title "Book Title" \
+  --type auto \
   --output ./book-skill-packs
 ```
 
 ### Output Contract
 
-The wrapper creates a book-scoped workspace:
+The wrapper creates a source-scoped workspace:
 
 ```text
 book-workspaces/
@@ -215,13 +223,25 @@ book-workspaces/
                 ├── BOOK_SKILL_INDEX.md
                 ├── MANAGE_SKILLS.md
                 ├── source-markdown/
+                ├── segments/
+                │   ├── manifest.json
+                │   └── 001-<chapter-or-section>.md
+                ├── chapter-skills/
+                │   └── 001-<chapter-or-section>/
+                │       ├── CHAPTER_SKILL_INDEX.md
+                │       └── skills/
+                ├── whole-book/
+                │   └── WHOLE_BOOK_SUMMARY.md
                 └── skills/
 ```
 
-Give `LLM_EXTRACTION_PROMPT.md` and `source-markdown/` to a large language model. The model should fill:
+Give `LLM_EXTRACTION_PROMPT.md`, `segments/`, and `chapter-skills/` to a large language model. The model should fill:
 
-- `BOOK_SKILL_INDEX.md`: what this book can help the agent do, when to reference it, and a table of skill candidates.
-- `skills/*.md`: one candidate skill per file, using the generated `_skill-template.md`.
+- `chapter-skills/*/CHAPTER_SKILL_INDEX.md`: what each segment contributes before whole-source synthesis.
+- `chapter-skills/*/skills/*.md`: one narrow candidate skill per segment-level capability.
+- `whole-book/WHOLE_BOOK_SUMMARY.md`: source-level capability summary after segment extraction.
+- `BOOK_SKILL_INDEX.md`: what this source can help the agent do, when to reference it, and a table of skill candidates.
+- `skills/*.md`: reviewed cross-segment candidates only, using the generated `_skill-template.md`.
 
 ### Extraction Criteria
 
@@ -235,11 +255,11 @@ Extract only content that can become an operational skill:
 - coding or analysis patterns
 - frameworks with clear trigger situations
 
-Keep broad concepts and background theory as reference-only material unless the book gives a concrete procedure.
+Keep broad concepts and background theory as reference-only material unless the source gives a concrete procedure.
 
 ### Manage Skills Boundary
 
-Book skill packs are candidates. Do not automatically install, enable, or sync generated skills. After human review, promote only stable skills into the managed skills repository, then run the local skills manager separately, for example:
+Long-form skill packs are candidates. Do not automatically install, enable, or sync generated skills. After human review, promote only stable skills into the managed skills repository, then run the local skills manager separately, for example:
 
 ```bash
 skills enable <promoted-skill-name>
@@ -247,16 +267,13 @@ skills enable <promoted-skill-name>
 
 The generated pack must not store API tokens, authorization headers, remote result URLs, or private account data.
 
-### Roadmap Notes
+### Source Type Classification
 
-Future iterations should preserve the source structure more strongly:
-
-- split books by chapter or section heading
-- extract candidate skills chapter by chapter
-- only then synthesize the whole-book capability summary
-- package skills under the book's structure so the agent can reference a book as a coherent source package
-
-The workflow should later support other long-form text sources such as video courses, papers, manuals, and article collections. Add a text-type classifier before extraction so the system can choose the right segmentation strategy for books, courses, papers, or other text-like inputs.
+Use `--type auto` by default. The packer records detected type metadata for
+books, courses, papers, manuals, article collections, and project notes. Override
+with `--type book`, `--type course`, `--type paper`, `--type manual`,
+`--type article-collection`, or `--type project-notes` when the automatic
+classifier is wrong.
 
 ## Quick Parse (Python)
 

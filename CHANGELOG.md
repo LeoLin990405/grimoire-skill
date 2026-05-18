@@ -8,15 +8,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - Book-to-skill first iteration with `scripts/mineru-book-to-skill.sh`.
-- `scripts/book-skill-pack.sh` for staging parsed Markdown as an LLM-ready book skill pack.
+- `scripts/book-skill-pack.sh` for staging parsed Markdown as an LLM-ready long-form skill pack.
 - `examples/book_to_skill.sh` end-to-end example.
-- Book skill pack outputs: `LLM_EXTRACTION_PROMPT.md`, `BOOK_SKILL_INDEX.md`, `MANAGE_SKILLS.md`, `manifest.json`, `source-markdown/`, and `skills/`.
+- Long-form skill pack outputs: `LLM_EXTRACTION_PROMPT.md`, `BOOK_SKILL_INDEX.md`, `MANAGE_SKILLS.md`, `manifest.json`, `source-markdown/`, and `skills/`.
 - `--manifest` and `--no-print-md` options for `mineru-parse.sh`.
+- Long-form source type metadata with `--type auto|book|course|paper|manual|article-collection|project-notes`.
+- Chapter/lesson/section segmentation under `segments/`.
+- Segment-first extraction workspaces under `chapter-skills/`.
+- Whole-source synthesis template at `whole-book/WHOLE_BOOK_SUMMARY.md`.
+- Manage-skills consumption contract for reviewing segment drafts before promotion.
+- Open-source skill manager reference notes in `docs/open-source-skill-manager-references.md`.
 
 ### Changed
 - Documented the privacy boundary for book uploads through the MinerU cloud API.
-- Documented that generated book skill packs are candidates and are not automatically installed or enabled.
-- Documented roadmap notes for chapter-level extraction, whole-book synthesis, book-structured skill packaging, and future text-type classification.
+- Documented that generated long-form skill packs are candidates and are not automatically installed or enabled.
+- Promoted chapter-level extraction, whole-source synthesis, source-structured skill packaging, and text-type classification from roadmap notes into the staged output contract.
 
 ## [1.1.0] - 2026-03-16
 
