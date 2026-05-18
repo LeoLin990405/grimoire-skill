@@ -36,7 +36,7 @@ Options:
   --ocr              Enable OCR mode.
   --pages <range>    Page ranges, e.g. "1-50,80-120".
   --type <type>      Source type: auto, book, course, paper, manual,
-                    article-collection, project-notes, video, web, or mixed.
+                    article-collection, project-notes, video, audio, web, or mixed.
                     Default: auto.
   --cloud-ok         Confirm local-file upload to MinerU cloud API is acceptable.
   --force            Replace an existing workspace.
@@ -108,7 +108,7 @@ done
 command -v jq >/dev/null 2>&1 || error "jq is required but not installed"
 
 case "$SOURCE_TYPE" in
-    auto|book|course|paper|manual|article-collection|project-notes|video|web|mixed) ;;
+    auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed) ;;
     *) error "Unsupported source type: $SOURCE_TYPE" ;;
 esac
 

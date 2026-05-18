@@ -281,9 +281,10 @@ automatic classifier is wrong.
 
 ## Vivo Agent Workflow
 
-Use this when the user wants Codex, Claude Code, or another agent to collect
-knowledge from web pages, videos, PDFs, courses, books, or existing notes and
-distill it into candidate skills.
+Use this when the user gives text or source metadata and wants Codex, Claude
+Code, or another agent to first identify the object type, write the matching
+notes, then distill candidate skills from books, papers, courses, web pages,
+videos, audio transcripts, PDFs, or existing notes.
 
 ```bash
 ~/.claude/skills/mineru/scripts/vivo-agent-workspace.sh \
@@ -294,19 +295,24 @@ distill it into candidate skills.
 ```
 
 Vivo creates `AGENT_TASK.md`, `SOURCES.md`, `notes/live-notes.md`,
-`notes/topic-classification.md`, `captured-markdown/`, and `packs/`. The script
-does not call OpenAI, Claude, or any model. The active agent performs capture
-and reasoning with its available tools:
+`notes/source-type-confirmation.md`, `notes/topic-classification.md`,
+`notes/skill-discovery-coverage.md`, `captured-markdown/`, and `packs/`. The
+script does not call OpenAI, Claude, or any model. The active agent performs
+capture and reasoning with its available tools:
 
 - web pages: browser, fetch, web search, or OpenAI-backed web capability
 - videos: subtitles or transcript tools
+- audio: transcript or speech-to-text tools when available
 - PDFs: MinerU parsing or another local converter
 - courses: lesson/module/topic classification
-- notes: simultaneous durable notes while capture happens
+- notes: first source-type confirmation, then typed notes while capture happens
 
-After capture, the agent runs `book-skill-pack.sh` over `captured-markdown/` and
-fills segment skills, `whole-book/WHOLE_BOOK_SUMMARY.md`, `MINDMAP.md`, and
-`BOOK_SKILL_INDEX.md` before promoting reviewed candidates.
+After type confirmation and typed notes, the agent runs `book-skill-pack.sh`
+over `captured-markdown/` and fills segment skills,
+`whole-book/WHOLE_BOOK_SUMMARY.md`, `MINDMAP.md`,
+`SKILL_DISCOVERY_COVERAGE.md`, and `BOOK_SKILL_INDEX.md` before promoting
+reviewed candidates. Stop only when a full pass over every source unit finds no
+new supported operational skills.
 
 ## Quick Parse (Python)
 

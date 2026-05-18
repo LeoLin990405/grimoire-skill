@@ -228,10 +228,12 @@ mixed source sets, and project notes. Manual override is supported with
 
 ## Vivo Agent Workflow
 
-Vivo is the agent-operated layer on top of the source-to-skill pack. It creates
-a workspace where Codex, Claude Code, or another capable agent captures web
-pages, video subtitles, PDFs, courses, books, and notes, while writing durable
-notes in parallel.
+Vivo is the agent-operated layer before and around the source-to-skill pack. Its
+first step is source type confirmation: given text or source metadata, Codex,
+Claude Code, or another capable agent decides whether the object is a book,
+paper, course, video transcript, audio transcript, web article, manual/spec,
+project note, or mixed source set. Only then does the agent write the matching
+typed notes and start skill discovery.
 
 ```bash
 ./scripts/vivo-agent-workspace.sh \
@@ -241,12 +243,15 @@ notes in parallel.
   --output ./vivo-workspaces
 ```
 
-The agent receives `AGENT_TASK.md`, fills `SOURCES.md`, writes running notes in
-`notes/live-notes.md`, normalizes captured content into `captured-markdown/`,
-then runs `book-skill-pack.sh` to create the structured pack. Vivo itself does
-not call OpenAI or Claude directly; the active agent runtime performs web
-capture, transcript retrieval, PDF conversion, topic classification, mindmap
-synthesis, and skill drafting with its available tools.
+The agent receives `AGENT_TASK.md`, fills `notes/source-type-confirmation.md`,
+selects a note template, writes running notes in `notes/live-notes.md`,
+normalizes captured content into `captured-markdown/`, then runs
+`book-skill-pack.sh` to create the structured pack. Vivo itself does not call
+OpenAI or Claude directly; the active agent runtime performs web capture,
+transcript retrieval, PDF conversion, topic classification, mindmap synthesis,
+and repeated skill discovery with its available tools. Future opencli adapters
+can provide webpage/video/audio-to-text capture, but the agent still owns the
+reading and distillation decisions.
 
 ## Examples
 
@@ -266,7 +271,10 @@ mineru-skill/
 │   ├── mineru-parse.sh      # CLI helper script
 │   ├── mineru-book-to-skill.sh # Long-form parsing + skill-pack staging wrapper
 │   ├── book-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
-│   └── vivo-agent-workspace.sh # Create an agent-operated Vivo workspace
+│   ├── vivo-agent-workspace.sh # Create an agent-operated Vivo workspace
+│   └── vivo-note-template.sh # Install typed note templates into a Vivo workspace
+├── templates/
+│   └── vivo/                # Source type confirmation and typed note templates
 ├── examples/
 │   ├── parse_single.sh      # Single URL parsing example
 │   ├── parse_local.sh       # Local file parsing example

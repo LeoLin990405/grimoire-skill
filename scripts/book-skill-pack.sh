@@ -26,7 +26,7 @@ Options:
   --slug <slug>      Output directory slug. Defaults to a sanitized title.
   --agent <name>     Agent name to use in generated prompts. Default: Agent.
   --type <type>      Source type: auto, book, course, paper, manual,
-                    article-collection, project-notes, video, web, or mixed.
+                    article-collection, project-notes, video, audio, web, or mixed.
                     Default: auto.
   --output <dir>     Parent output directory. Default: ./book-skill-packs
   --force            Replace an existing pack directory.
@@ -40,6 +40,7 @@ Output:
     BOOK_SKILL_INDEX.md
     MANAGE_SKILLS.md
     MINDMAP.md
+    SKILL_DISCOVERY_COVERAGE.md
     source-markdown/
     segments/
     chapter-skills/
@@ -102,6 +103,7 @@ source_unit_label() {
         article-collection) printf '%s' "Article" ;;
         project-notes) printf '%s' "Note" ;;
         video) printf '%s' "Segment" ;;
+        audio) printf '%s' "Segment" ;;
         web) printf '%s' "Section" ;;
         mixed) printf '%s' "Source" ;;
         *) printf '%s' "Section" ;;
@@ -124,6 +126,9 @@ boundary_keywords() {
             ;;
         video)
             printf '%s' "chapter|segment|timestamp|transcript|topic|section|part"
+            ;;
+        audio)
+            printf '%s' "timestamp|transcript|speaker|topic|section|chapter|segment"
             ;;
         web)
             printf '%s' "overview|introduction|background|guide|steps?|workflow|examples?|faq|summary|section"
@@ -225,7 +230,7 @@ done
 [[ -e "$SOURCE" ]] || error "Source not found: $SOURCE"
 
 case "$SOURCE_TYPE" in
-    auto|book|course|paper|manual|article-collection|project-notes|video|web|mixed) ;;
+    auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed) ;;
     *) error "Unsupported source type: $SOURCE_TYPE" ;;
 esac
 
@@ -495,6 +500,47 @@ a managed skill registry.
 |  |  |  |  |
 EOF
 
+cat > "$PACK_DIR/SKILL_DISCOVERY_COVERAGE.md" <<EOF
+# $TITLE - Skill Discovery Coverage
+
+Repeat extraction passes until no new supported skills are found.
+
+## Coverage Status
+
+| Field | Value |
+|---|---|
+| Current pass | 1 |
+| Skill discovery complete | false |
+| Completion confidence | low / medium / high |
+| Completion reason |  |
+
+## Pass Log
+
+| Pass | Sources/segments checked | New skills found | Skipped material | Why skipped | Next action |
+|---|---|---:|---|---|---|
+| 1 |  | 0 |  |  |  |
+
+## Exhaustiveness Checklist
+
+- [ ] Every chapter/lesson/section/timestamp/source segment checked.
+- [ ] Procedures and workflows extracted.
+- [ ] Checklists extracted.
+- [ ] Diagnostics extracted.
+- [ ] Decision rules extracted.
+- [ ] Prompt patterns extracted.
+- [ ] Implementation patterns extracted.
+- [ ] Evaluation criteria extracted.
+- [ ] Reference-only material separated.
+- [ ] No unsupported skills invented.
+- [ ] No long copyrighted excerpts copied.
+
+## Stop Condition
+
+Set \`Skill discovery complete\` to true only when a full pass over every source
+unit produces no new supported operational skills and skipped material has a
+clear reason. Reading all text once is not sufficient.
+EOF
+
 jq -n \
     --arg title "$TITLE" \
     --arg slug "$SLUG" \
@@ -522,6 +568,7 @@ jq -n \
       expected_outputs: [
         "BOOK_SKILL_INDEX.md",
         "MINDMAP.md",
+        "SKILL_DISCOVERY_COVERAGE.md",
         "segments/manifest.json",
         "chapter-skills/*/CHAPTER_SKILL_INDEX.md",
         "chapter-skills/*/skills/*.md",
@@ -558,6 +605,7 @@ The model should answer:
 - \`source-markdown/\`: copied MinerU Markdown files.
 - \`segments/\`: generated chapter/lesson/section files and \`manifest.json\`.
 - \`MINDMAP.md\`: source structure map for turning topics into skill families.
+- \`SKILL_DISCOVERY_COVERAGE.md\`: pass log for repeated skill discovery until no new supported skills are found.
 - \`chapter-skills/\`: one extraction workspace per segment.
 - \`whole-book/WHOLE_BOOK_SUMMARY.md\`: whole-source synthesis template, filled after segment extraction.
 - \`BOOK_SKILL_INDEX.md\`: source-level summary and skill index template.
@@ -663,9 +711,11 @@ The final answer must make it clear:
 4. Only after segment-level extraction is complete, fill
    \`whole-book/WHOLE_BOOK_SUMMARY.md\`.
 5. Fill \`MINDMAP.md\` to map source topics into candidate skill families.
-6. Fill \`BOOK_SKILL_INDEX.md\` from the segment indexes and whole-source
+6. Fill \`SKILL_DISCOVERY_COVERAGE.md\`. Repeat passes until no new supported
+   operational skills are found.
+7. Fill \`BOOK_SKILL_INDEX.md\` from the segment indexes and whole-source
    synthesis.
-7. Copy or rewrite only reviewed cross-segment candidates into root \`skills/\`.
+8. Copy or rewrite only reviewed cross-segment candidates into root \`skills/\`.
 
 ## Required Outputs
 
@@ -695,7 +745,11 @@ Update or create these files:
    - Fill topic classification and skill-family mapping.
    - Use this to decide package structure for managed skills.
 
-6. \`skills/<short-skill-slug>.md\`
+6. \`SKILL_DISCOVERY_COVERAGE.md\`
+   - Record every extraction pass.
+   - Stop only when a full pass finds no new supported operational skills.
+
+7. \`skills/<short-skill-slug>.md\`
    - Optional root-level promoted candidates only.
    - Use this only after review-worthy cross-segment candidates are clear.
 
@@ -715,6 +769,8 @@ Update or create these files:
   methods, preserve them as references or compact procedures rather than prose.
 - Separate "skills" from "reference material"; not every good idea should become
   an active skill.
+- Keep extracting until a full coverage pass finds no new supported operational
+  skills. Do not stop only because the text was read once.
 
 ## Per-Skill File Requirements
 
@@ -837,8 +893,9 @@ A skill manager or agent team should consume this pack in this order:
 4. \`chapter-skills/<segment>/skills/*.md\`: review individual draft skills.
 5. \`whole-book/WHOLE_BOOK_SUMMARY.md\`: read final source-level synthesis.
 6. \`MINDMAP.md\`: read topic and skill-family classification.
-7. \`BOOK_SKILL_INDEX.md\`: read the final index and promotion recommendations.
-8. \`skills/*.md\`: promote only deliberately reviewed cross-segment skills.
+7. \`SKILL_DISCOVERY_COVERAGE.md\`: verify the no-new-skills stop condition.
+8. \`BOOK_SKILL_INDEX.md\`: read the final index and promotion recommendations.
+9. \`skills/*.md\`: promote only deliberately reviewed cross-segment skills.
 
 ## Boundary With skills-mgr
 

@@ -70,7 +70,7 @@ done
 
 [[ -n "$TITLE" ]] || error "--title is required"
 case "$SOURCE_TYPE" in
-    auto|book|course|paper|manual|article-collection|project-notes|video|web|mixed) ;;
+    auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed) ;;
     *) error "Unsupported source type: $SOURCE_TYPE" ;;
 esac
 command -v jq >/dev/null 2>&1 || error "jq is required but not installed"
@@ -92,6 +92,7 @@ fi
 mkdir -p \
     "$WORKSPACE/inbox/web" \
     "$WORKSPACE/inbox/video" \
+    "$WORKSPACE/inbox/audio" \
     "$WORKSPACE/inbox/pdf" \
     "$WORKSPACE/inbox/course" \
     "$WORKSPACE/inbox/notes" \
@@ -117,6 +118,12 @@ jq -n \
       created_at: $created_at,
       agent_executes_reasoning: true,
       model_called_by_this_script: false,
+      source_type_confirmation_required: true,
+      confirmed_source_type: null,
+      note_template: null,
+      capture_pipeline: "manual|mineru|opencli|existing-markdown",
+      skill_discovery_policy: "repeat_until_no_new_supported_skills",
+      skill_discovery_complete: false,
       directories: {
         inbox: "inbox/",
         captured_markdown: "captured-markdown/",
@@ -130,9 +137,32 @@ cat > "$WORKSPACE/SOURCES.md" <<EOF
 
 Add every source before or during capture. Keep local paths relative when possible.
 
-| ID | Type | Title | URL or path | Capture status | Notes |
-|---|---|---|---|---|---|
-| S1 | web / video / pdf / course / note |  |  | pending |  |
+| ID | Claimed type | Confirmed type | Type confidence | Note template | Title | URL or path | Capture method | Capture status | Notes |
+|---|---|---|---|---|---|---|---|---|---|
+| S1 | web / video / audio / pdf / course / note |  |  |  |  |  | manual / MinerU / opencli / browser / transcript / existing-markdown | pending |  |
+EOF
+
+cat > "$WORKSPACE/notes/source-type-confirmation.md" <<EOF
+# Source Type Confirmation - $TITLE
+
+Confirm the object type before writing notes or extracting skills.
+
+| Field | Value |
+|---|---|
+| Detected type | book / paper / course / video / audio / web / manual / project-notes / mixed |
+| Confidence | high / medium / low |
+| Ambiguous between |  |
+| Selected note template |  |
+| Selected segmentation unit | chapter / section / lesson / timestamp segment / page / source |
+| Capture needed | none / MinerU / opencli / browser / transcript / existing markdown |
+
+## Evidence
+
+-
+
+## Next Agent Action
+
+-
 EOF
 
 cat > "$WORKSPACE/notes/live-notes.md" <<EOF
@@ -164,12 +194,79 @@ sections, or recurring workflows as the package boundary.
 |  |  |  |  |
 EOF
 
+cat > "$WORKSPACE/notes/skill-discovery-coverage.md" <<EOF
+# Skill Discovery Coverage - $TITLE
+
+Repeat extraction passes until no new supported skills are found.
+
+| Field | Value |
+|---|---|
+| Current pass | 1 |
+| Skill discovery complete | false |
+| Completion confidence | low / medium / high |
+| Completion reason |  |
+
+## Pass Log
+
+| Pass | Sources/segments checked | New skills found | Skipped material | Why skipped | Next action |
+|---|---|---:|---|---|---|
+| 1 |  | 0 |  |  |  |
+
+## Exhaustiveness Checklist
+
+- [ ] Every chapter/lesson/section/timestamp segment checked.
+- [ ] Procedures and workflows extracted.
+- [ ] Checklists extracted.
+- [ ] Diagnostics extracted.
+- [ ] Decision rules extracted.
+- [ ] Prompt patterns extracted.
+- [ ] Implementation patterns extracted.
+- [ ] Evaluation criteria extracted.
+- [ ] Reference-only material separated.
+- [ ] No unsupported skills invented.
+- [ ] No long copyrighted excerpts copied.
+EOF
+
 cat > "$WORKSPACE/AGENT_TASK.md" <<EOF
 # Vivo Agent Task - $TITLE
 
 You are $AGENT_NAME operating a Vivo workspace. Vivo does not replace the
 agent's reasoning. Vivo gives you a workspace, capture contract, notes, and a
 skill-pack output shape.
+
+## AgentTeams Roles
+
+Use AgentTeams or equivalent parallel agents when available:
+
+1. Type classifier: inspect the given text or source metadata and fill
+   \`notes/source-type-confirmation.md\`.
+2. Capture/normalization agent: convert online web/video/audio/PDF sources into
+   Markdown when needed. Future online capture may use opencli; current agents
+   should use their available browser, transcript, fetch, or MinerU tools.
+3. Typed note writer: write the matching note shape, such as paper reading
+   notes, book chapter notes, course lesson notes, video/audio transcript notes,
+   web article notes, or manual/spec notes.
+4. Skill discovery agent: extract candidate skills while notes are being built.
+5. Coverage reviewer: repeat extraction passes until no new supported
+   operational skills are found; update \`notes/skill-discovery-coverage.md\`.
+
+## Required First Step
+
+Do not start the skill pack first. First inspect the provided text/source and
+confirm its type:
+
+- book
+- paper
+- course
+- video transcript
+- audio transcript
+- web article
+- manual/spec
+- project notes
+- mixed source set
+
+Fill \`notes/source-type-confirmation.md\`, update \`SOURCES.md\`, and select the
+right note template before writing detailed notes.
 
 ## Principle
 
@@ -179,6 +276,8 @@ Use the tools available to the current agent runtime. For example:
   capability when available. Save clean Markdown in \`captured-markdown/\`.
 - Videos: fetch or download subtitles/transcripts with available video tools.
   Save transcript Markdown in \`captured-markdown/\`.
+- Audio: fetch or transcribe audio when tools are available. Save transcript
+  Markdown in \`captured-markdown/\`.
 - PDFs: use MinerU parsing when needed, then save or link converted Markdown.
 - Courses: preserve lessons/modules/projects as structure and classify topics.
 - Notes: write running notes in \`notes/live-notes.md\` while capture is happening.
@@ -207,6 +306,22 @@ Each captured Markdown file should include:
   prompt patterns, or implementation patterns
 - candidate skill ideas grouped by topic
 
+## Typed Notes
+
+Use the confirmed source type to write the right note form:
+
+| Type | Notes to write | Segment unit | Skill focus |
+|---|---|---|---|
+| book | book chapter notes | chapter/section | frameworks, workflows, checklists, decision rules |
+| paper | paper reading notes | abstract/method/experiment/limitation | methods, evaluations, failure modes |
+| course | course lesson notes | module/lesson/exercise | learning workflows, projects, rubrics |
+| video | video transcript notes | timestamp/topic segment | demos, operation order, practical heuristics |
+| audio | audio transcript notes | speaker/topic segment | decision context, rules, action items |
+| web | web article notes | heading/topic section | web workflows, tool usage, reference links |
+| manual | manual/spec notes | concept/how-to/reference/error | exact commands, APIs, troubleshooting |
+| project-notes | project notes | date/topic/task | runbooks, conventions, rollback paths |
+| mixed | mixed source notes | source first, then topic | cross-source stable patterns |
+
 ## Simultaneous Notes
 
 While capturing, keep \`notes/live-notes.md\` open conceptually and update it
@@ -215,7 +330,8 @@ skill decisions, not scratch logs.
 
 ## Mindmap And Skill Pack
 
-After capture, run this from the mineru-skill repo:
+Only after type confirmation and typed notes are written, run this from the
+mineru-skill repo:
 
 \`\`\`bash
 ./scripts/book-skill-pack.sh "$WORKSPACE/captured-markdown" \\
@@ -233,7 +349,11 @@ Then fill the generated pack in this order:
 3. \`whole-book/WHOLE_BOOK_SUMMARY.md\`
 4. \`MINDMAP.md\`
 5. \`BOOK_SKILL_INDEX.md\`
-6. root \`skills/*.md\` only for reviewed cross-source candidates
+6. \`SKILL_DISCOVERY_COVERAGE.md\`
+7. root \`skills/*.md\` only for reviewed cross-source candidates
+
+Repeat discovery passes until a full pass over every source unit produces no
+new supported operational skills. Reading all text once is not sufficient.
 
 ## Final Report
 
@@ -249,6 +369,7 @@ EOF
 touch \
     "$WORKSPACE/inbox/web/.gitkeep" \
     "$WORKSPACE/inbox/video/.gitkeep" \
+    "$WORKSPACE/inbox/audio/.gitkeep" \
     "$WORKSPACE/inbox/pdf/.gitkeep" \
     "$WORKSPACE/inbox/course/.gitkeep" \
     "$WORKSPACE/inbox/notes/.gitkeep" \

@@ -21,12 +21,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Open-source skill manager reference notes in `docs/open-source-skill-manager-references.md`.
 - Vivo agent workspace generator at `scripts/vivo-agent-workspace.sh`.
 - Vivo agent-operated workflow documentation in `docs/vivo-agent-workflow.md`.
+- Source type confirmation and typed note templates under `templates/vivo/`.
+- `scripts/vivo-note-template.sh` for installing type-specific note templates into a Vivo workspace.
+- Skill discovery coverage templates in workspaces and generated packs.
+- Audio source type support for transcript-based workflows.
 
 ### Changed
 - Documented the privacy boundary for book uploads through the MinerU cloud API.
 - Documented that generated long-form skill packs are candidates and are not automatically installed or enabled.
 - Promoted chapter-level extraction, whole-source synthesis, source-structured skill packaging, and text-type classification from roadmap notes into the staged output contract.
 - Clarified that Vivo capture and reasoning are performed by Codex/Claude-style agents, not by a hidden model call inside the scripts.
+- Moved Vivo's first required step to source type confirmation before typed notes, capture normalization, or skill packs.
 
 ## [1.1.0] - 2026-03-16
 
