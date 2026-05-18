@@ -29,13 +29,14 @@
 |---------|-------------|
 | **Cloud API** | No GPU needed — uses `mineru.net` hosted service |
 | **Local API** | Self-hosted with `mineru-api` for full control |
-| **Smart Models** | `hybrid` (default), `pipeline`, `vlm`, `MinerU-HTML` |
+| **Smart Models** | `vlm` (default), `pipeline`, `MinerU-HTML` — `hybrid` retired by the cloud API (2026-04) |
 | **Rich Extraction** | OCR (109 languages), LaTeX formulas, cross-page tables |
 | **Batch Processing** | Parse up to 200 files per request |
 | **Extra Formats** | Export to DOCX, HTML, or LaTeX alongside Markdown |
 | **CLI Script** | `mineru-parse.sh` for quick command-line usage |
 | **Auto-Extract** | Download + unzip + display markdown in one step |
 | **Long-Form Skill Packs** | Stage parsed books, courses, papers, manuals, and notes for LLM extraction into candidate agent skills |
+| **Auto-Classified Reading Notes** | Decide `book`/`paper`/`document` automatically (heuristic + AI fallback), scaffold the matching note discipline, land it in an Obsidian vault |
 
 ## Quick Start
 
@@ -74,7 +75,7 @@ Extract tables from report.pdf using the vlm model with OCR
 # Parse from URL
 ./scripts/mineru-parse.sh https://example.com/paper.pdf --output ./parsed --extract
 
-# Parse local file with VLM model
+# Parse local file with VLM model (default since hybrid was retired)
 ./scripts/mineru-parse.sh report.pdf --model vlm --ocr --output ./out
 
 # Extra output formats
@@ -82,6 +83,15 @@ Extract tables from report.pdf using the vlm model with OCR
 
 # Turn a long-form source into an LLM-ready skill extraction workspace
 ./scripts/mineru-source-to-skill.sh book.pdf --title "My Book" --output ./workspaces --cloud-ok
+
+# Parse + auto-classify (book/paper/document) + scaffold reading notes
+./scripts/mineru-to-notes.sh paper.pdf --title "Attention Is All You Need" --cloud-ok
+```
+
+**In Claude Code** — the source-to-notes flow, naturally:
+
+```
+帮我读这个 PDF 并写笔记，自己判断是书、论文还是文档：~/Downloads/xxx.pdf
 ```
 
 ## CLI Reference
@@ -121,10 +131,10 @@ mineru-parse.sh <url_or_file> [options]
 
 | Model | Best For | Speed | Notes |
 |-------|----------|-------|-------|
-| `hybrid` | General use | Medium | **Default since v2.7.0, recommended** |
-| `pipeline` | CPU-only environments | Fast | No GPU required |
-| `vlm` | Complex layouts, scanned docs | Slower | Needs 10GB+ VRAM |
+| `vlm` | General use, complex/scanned docs | Slower | **Default.** Cloud-recommended; needs 10GB+ VRAM locally |
+| `pipeline` | CPU-only environments | Fast | No GPU required, lower accuracy |
 | `MinerU-HTML` | Preserving HTML structure | Medium | Web content |
+| `hybrid` | — | — | **Retired on the cloud API (2026-04)** — returns `code -10002 "version field invalid"`. Defaults switched to `vlm`. |
 
 ## API Limits (Cloud)
 
@@ -241,6 +251,53 @@ automation:
 - `scripts/book-skill-pack.sh`
 - `scripts/vivo-agent-workspace.sh`
 
+## Source-to-Notes Workflow
+
+Different goal from source-to-skill: this reads a document and writes
+**reading notes**, not reusable agent skills. The note discipline is decided
+from the document itself.
+
+```bash
+# Parse + auto-classify + scaffold the matching note workspace.
+./scripts/mineru-to-notes.sh ~/Downloads/source.pdf \
+  --title "Source Title" \
+  --type auto \
+  --cloud-ok
+
+# Override the classifier if you already know the type.
+./scripts/mineru-to-notes.sh ~/Downloads/thesis.pdf --type paper --cloud-ok
+
+# Already have MinerU Markdown? Skip parsing.
+./scripts/reading-notes-pack.sh ./mineru-extracted/doc --title "Doc" --type auto
+```
+
+### Autonomous classification
+
+`scripts/lib/reading-types.sh` is a hybrid classifier — a deterministic scorer
+plus an AI confirmation fallback. It folds the repo's 11-type taxonomy into
+three note disciplines:
+
+| Detected | Signals it scores | What the agent writes |
+|----------|-------------------|-----------------------|
+| `book` | `第N章`/`Chapter N` × many, TOC, ISBN, long page count | Chapter-by-chapter complete notes |
+| `paper` | abstract, DOI/arXiv, references, related work, venue | Detailed structured reading + per-section excerpts |
+| `document` | API ref / install / config / report / spec / slides, short | Content-adaptive structured points + checklist |
+
+When confidence is **low**, the pack emits `AI_CLASSIFY.md`: the agent reads a
+text sample, makes a `book`/`paper`/`document` decision (Step 0), and re-runs
+the packer with the corrected `--type` if it disagrees. Confident cases skip
+straight to reading.
+
+### Lands in Obsidian
+
+The final note targets the Knowledge-Hub vault:
+`book → Books/`, `paper → Papers/`, `document → Documents/`. Vault root is
+`$MINERU_OBSIDIAN_VAULT` (default `~/Documents/Obsidian-Vaults/Knowledge-Hub`),
+overridable with `--vault`. The scripts never call an LLM and never write into
+the vault — `OBSIDIAN_PLAN.md` tells the agent the exact target path and to
+match an existing sibling note's house style; the agent writes it after a
+quality self-check (> 2KB real synthesis, evidence anchors, `[[wikilinks]]`).
+
 ## Vivo Agent Workflow
 
 Vivo is the agent-operated layer before and around the source-to-skill pack. Its
@@ -286,21 +343,27 @@ mineru-skill/
 │   ├── mineru-parse.sh      # CLI helper script
 │   ├── mineru-source-to-skill.sh # Long-form parsing + skill-pack staging wrapper
 │   ├── source-skill-pack.sh   # Build a segmented skill extraction pack from Markdown
+│   ├── mineru-to-notes.sh   # Parse + auto-classify + scaffold reading notes
+│   ├── reading-notes-pack.sh # Build a book/paper/document notes pack from Markdown
 │   ├── vivo-workspace.sh    # Create an agent-operated Vivo workspace
 │   ├── mineru-book-to-skill.sh # Compatibility wrapper
 │   ├── book-skill-pack.sh   # Compatibility wrapper
 │   ├── vivo-agent-workspace.sh # Compatibility wrapper
-│   ├── lib/                 # Shared shell helpers and source type rules
+│   ├── lib/                 # Shared helpers: common, source-types,
+│   │                        #   segment (shared splitter), reading-types
 │   └── vivo-note-template.sh # Install typed note templates into a Vivo workspace
 ├── templates/
-│   └── vivo/                # Source type confirmation and typed note templates
+│   ├── vivo/                # Source type confirmation and typed note templates
+│   └── reading-notes/       # book / paper / document note templates (Obsidian)
 ├── examples/
 │   ├── parse_single.sh      # Single URL parsing example
 │   ├── parse_local.sh       # Local file parsing example
 │   ├── parse_batch.py       # Batch processing example (Python)
-│   └── book_to_skill.sh     # Long-form source-to-skill workspace example
+│   ├── book_to_skill.sh     # Long-form source-to-skill workspace example
+│   └── pdf_to_notes.sh      # Auto-classified reading-notes example
 ├── docs/
 │   ├── open-source-skill-manager-references.md
+│   ├── reading-notes-workflow.md
 │   └── vivo-agent-workflow.md
 ├── .github/
 │   ├── ISSUE_TEMPLATE/      # Bug report & feature request templates

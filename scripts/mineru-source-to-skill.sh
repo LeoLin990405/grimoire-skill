@@ -17,7 +17,7 @@ PACKER="$SCRIPT_DIR/source-skill-pack.sh"
 OUTPUT_ROOT="./source-workspaces"
 TITLE=""
 SLUG=""
-MODEL="hybrid"
+MODEL="vlm"
 OCR=false
 PAGE_RANGES=""
 SOURCE_TYPE="auto"
@@ -37,7 +37,7 @@ Options:
   --title <title>    Source title. Defaults to the filename or URL basename.
   --slug <slug>      Workspace slug. Defaults to a sanitized title.
   --output <dir>     Workspace root. Default: ./source-workspaces
-  --model <m>        MinerU model: hybrid (default), pipeline, vlm, MinerU-HTML
+  --model <m>        MinerU model: vlm (default), pipeline, MinerU-HTML
   --ocr              Enable OCR mode.
   --pages <range>    Page ranges, e.g. "1-50,80-120".
   --type <type>      Source type: auto, book, course, paper, manual,

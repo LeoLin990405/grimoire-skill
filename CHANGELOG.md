@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Source-to-notes pipeline**: `scripts/mineru-to-notes.sh` (parse +
+  auto-classify + scaffold) and `scripts/reading-notes-pack.sh` (build a
+  reading-notes pack from Markdown).
+- **Hybrid reading-type classifier** `scripts/lib/reading-types.sh`: a
+  deterministic scorer (filename + parsed-Markdown structure + page count)
+  with an AI confirmation fallback (`AI_CLASSIFY.md`) when confidence is low.
+  Three buckets: `book`, `paper`, `document`.
+- Obsidian-aligned note templates under `templates/reading-notes/`
+  (`book-notes.md`, `paper-notes.md`, `document-notes.md`) with vault
+  frontmatter, `[[wikilinks]]`, and a quality bar.
+- `OBSIDIAN_PLAN.md` per pack: resolves the exact vault target
+  (`book → Books/`, `paper → Papers/`, `document → Documents/`), vault root
+  via `$MINERU_OBSIDIAN_VAULT` / `--vault`, and house-style rules. Scripts
+  never write into the vault — the agent does, after a quality self-check.
+- Shared Markdown segmenter extracted to `scripts/lib/segment.sh`, now used by
+  both the skill-pack and reading-notes pipelines (identical splitting).
+- `examples/pdf_to_notes.sh` and `docs/reading-notes-workflow.md`.
 - Source-to-skill first iteration with `scripts/mineru-source-to-skill.sh`.
 - `scripts/source-skill-pack.sh` for staging parsed Markdown as an LLM-ready long-form skill pack.
 - Compatibility wrappers: `scripts/mineru-book-to-skill.sh`, `scripts/book-skill-pack.sh`, and `scripts/vivo-agent-workspace.sh`.
@@ -29,6 +46,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 - Audio source type support for transcript-based workflows.
 
 ### Changed
+- **Default model `hybrid` → `vlm`** in `mineru-parse.sh` and
+  `mineru-source-to-skill.sh`. The cloud API retired `model_version: hybrid`
+  in 2026-04 (returns `code -10002 "version field invalid"`); docs updated to
+  flag `hybrid` as retired.
 - Refactored primary command names and workspace paths from book-first to source-first.
 - Documented the privacy boundary for local source uploads through the MinerU cloud API.
 - Documented that generated long-form skill packs are candidates and are not automatically installed or enabled.
