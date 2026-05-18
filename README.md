@@ -104,7 +104,7 @@ mineru-parse.sh <url_or_file> [options]
 
 | Option | Description | Default |
 |--------|-------------|---------|
-| `--model <m>` | Model version | `hybrid` |
+| `--model <m>` | Model version | `vlm` |
 | `--ocr` | Enable OCR | off |
 | `--no-formula` | Disable formula recognition | on |
 | `--no-table` | Disable table recognition | on |

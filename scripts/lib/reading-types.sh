@@ -78,7 +78,9 @@ classify_reading_type() {
 
     # ---- book evidence --------------------------------------------------
     local chapter_hits
-    chapter_hits="$(printf '%s' "$hay" | grep -Eoc '第[0-9一二三四五六七八九十百零]+[章篇]|chapter[[:space:]]+[0-9ivxlc]+' || true)"
+    # grep -o | wc -l is portable; BSD grep -c counts matching *lines*, not
+    # matches, so two chapter headings on one line would undercount.
+    chapter_hits="$(printf '%s' "$hay" | grep -Eo '第[0-9一二三四五六七八九十百零]+[章篇]|chapter[[:space:]]+[0-9ivxlc]+' 2>/dev/null | wc -l | tr -d ' ' || true)"
     chapter_hits="${chapter_hits:-0}"
     if [[ "$chapter_hits" -ge 5 ]]; then book_score=$((book_score+4)); _hit "chapters:$chapter_hits";
     elif [[ "$chapter_hits" -ge 2 ]]; then book_score=$((book_score+2)); _hit "chapters:$chapter_hits"; fi
@@ -102,17 +104,23 @@ classify_reading_type() {
     [[ -z "$signals" ]] && signals="-"
 
     # ---- decide ---------------------------------------------------------
-    local best="document" best_score="$doc_score" runner=0 s
+    # Winner = max score. `-ge` with document evaluated last makes document
+    # win any tie it is part of (safe default: it is the most general note
+    # discipline). Runner-up is the highest score among the non-winners,
+    # computed independently so the margin/confidence is honest.
+    local best="document" best_score=-1 s name val
     for s in "paper:$paper_score" "book:$book_score" "document:$doc_score"; do
-        local name="${s%%:*}" val="${s##*:}"
-        if [[ "$val" -gt "$best_score" ]]; then
-            runner="$best_score"; best="$name"; best_score="$val"
-        elif [[ "$val" -gt "$runner" && "$name" != "$best" ]]; then
-            runner="$val"
-        fi
+        name="${s%%:*}"; val="${s##*:}"
+        if [[ "$val" -ge "$best_score" ]]; then best="$name"; best_score="$val"; fi
+    done
+    local runner=0
+    for s in "paper:$paper_score" "book:$book_score" "document:$doc_score"; do
+        name="${s%%:*}"; val="${s##*:}"
+        [[ "$name" == "$best" ]] && continue
+        [[ "$val" -gt "$runner" ]] && runner="$val"
     done
     # document is the safe default when nothing scored.
-    if [[ "$best_score" -eq 0 ]]; then best="document"; fi
+    if [[ "$best_score" -le 0 ]]; then best="document"; best_score=0; fi
 
     local margin=$((best_score - runner))
     local confidence="low"

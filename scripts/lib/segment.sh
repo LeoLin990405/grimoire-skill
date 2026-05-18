@@ -15,6 +15,10 @@ segment_markdown_file() {
     local unit_label="$3"
     local source_label="${4:-$(basename "$source_file")}"
     local start_index="${5:-0}"
+    # SECURITY: arg 6 is interpolated verbatim into an awk ERE inside
+    # is_boundary(). It MUST be a hardcoded keyword alternation from
+    # boundary_keywords()/reading_boundary_keywords() — never user input,
+    # or it becomes an awk regex-injection / ReDoS vector.
     local extra_keywords="${6:-$(boundary_keywords book)}"
 
     awk -v outdir="$segments_dir" -v source_file="$source_file" -v source_label="$source_label" -v unit_label="$unit_label" -v start_index="$start_index" -v extra_keywords="$extra_keywords" '

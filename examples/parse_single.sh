@@ -7,7 +7,7 @@ SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 echo "=== Parse a PDF from URL ==="
 "$SCRIPT_DIR/scripts/mineru-parse.sh" \
     "https://arxiv.org/pdf/2301.00001.pdf" \
-    --model hybrid \
+    --model vlm \
     --output /tmp/mineru-example \
     --extract
 

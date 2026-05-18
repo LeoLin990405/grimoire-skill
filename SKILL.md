@@ -86,7 +86,7 @@ POST /extract/task
 | Param | Type | Required | Default | Description |
 |-------|------|----------|---------|-------------|
 | url | string | yes | - | File URL (no direct upload) |
-| model_version | string | no | hybrid | `hybrid` / `pipeline` / `vlm` / `MinerU-HTML` |
+| model_version | string | no | vlm | `vlm` / `pipeline` / `MinerU-HTML` (`hybrid` retired, returns `-10002`) |
 | is_ocr | bool | no | false | Enable OCR |
 | enable_formula | bool | no | true | Formula recognition |
 | enable_table | bool | no | true | Table recognition |
@@ -416,7 +416,7 @@ TOKEN = open("~/.config/mineru/token").read().strip()
 BASE = "https://mineru.net/api/v4"
 HEADERS = {"Authorization": f"Bearer {TOKEN}"}
 
-def parse_document(url, model="hybrid", ocr=False, extra_formats=None):
+def parse_document(url, model="vlm", ocr=False, extra_formats=None):
     """Parse a document from URL, return download link."""
     body = {
         "url": url, "model_version": model,
@@ -447,7 +447,7 @@ TOKEN=$(cat ~/.config/mineru/token)
 curl -s -X POST "https://mineru.net/api/v4/extract/task" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
-  -d '{"url":"https://example.com/doc.pdf","model_version":"hybrid"}'
+  -d '{"url":"https://example.com/doc.pdf","model_version":"vlm"}'
 
 # Check result
 curl -s "https://mineru.net/api/v4/extract/task/{task_id}" \

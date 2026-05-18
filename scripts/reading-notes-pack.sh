@@ -117,8 +117,26 @@ else
 fi
 [[ ${#MD_FILES[@]} -gt 0 ]] || error "No .md/.markdown files found under: $SOURCE"
 
-[[ -z "$TITLE" ]] && TITLE="$(basename "${SOURCE%.*}")"
+if [[ -z "$TITLE" ]]; then
+    TITLE="$(basename "$SOURCE")"
+    # Strip only real Markdown extensions so dotted directory names survive.
+    TITLE="${TITLE%.md}"
+    TITLE="${TITLE%.markdown}"
+fi
+# Display-safe title for agent-facing here-docs: a crafted --title with
+# newlines or leading '#' could otherwise inject fake instructions/headings
+# into AI_READING_TASK.md / AI_CLASSIFY.md.
+SAFE_TITLE="${TITLE//$'\n'/ }"
+SAFE_TITLE="${SAFE_TITLE//$'\r'/ }"
+SAFE_TITLE="${SAFE_TITLE//\#/}"
+
 [[ -z "$SLUG" ]] && SLUG="$(slugify "$TITLE" "source")"
+# slugify drops non-ASCII; a Chinese-only title degrades to a timestamp slug
+# (unstable path, different on every run). Warn so the user can pin --slug.
+case "$SLUG" in
+    source-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
+        echo "Warning: title produced a timestamp slug ('$SLUG'); pass --slug for a stable vault path." >&2 ;;
+esac
 
 PACK_DIR="$OUTPUT_DIR/$SLUG"
 if [[ -e "$PACK_DIR" ]]; then
@@ -152,6 +170,10 @@ done
 TITLE_LC="$(printf '%s' "$TITLE" | tr '[:upper:]' '[:lower:]')"
 SAMPLE_HEAD="$(sed -n '1,220p' "${COPIED_FILES[0]}")"
 SAMPLE_TAIL="$(tail -n 80 "${COPIED_FILES[${#COPIED_FILES[@]}-1]}")"
+# Neutralize code-fence sequences so source content cannot break out of the
+# fenced sample blocks in AI_CLASSIFY.md and inject text as document body.
+SAMPLE_HEAD_SAFE="${SAMPLE_HEAD//\`\`\`/\~\~\~}"
+SAMPLE_TAIL_SAFE="${SAMPLE_TAIL//\`\`\`/\~\~\~}"
 
 IFS=$'\t' read -r DETECTED_TYPE CONFIDENCE METHOD SIGNALS \
     < <(classify_reading_type "$READING_TYPE" "$TITLE_LC" "$SAMPLE_HEAD"$'\n'"$SAMPLE_TAIL" "$PAGE_COUNT")
@@ -160,7 +182,7 @@ NEEDS_AI=false
 [[ "$CONFIDENCE" == "low" ]] && NEEDS_AI=true
 
 CREATED_AT="$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
-SIGNALS_JSON="$(printf '%s' "$SIGNALS" | tr ',' '\n' | jq -Rn '[inputs | select(length>0)]')"
+SIGNALS_JSON="$(printf '%s' "$SIGNALS" | tr ',' '\n' | jq -Rn '[inputs | select(. != "-" and length > 0)]')"
 
 jq -n \
     --arg schema "mineru.reading-classification.v1" \
@@ -254,19 +276,19 @@ After deciding:
 
    \`\`\`bash
    reading-notes-pack.sh "<same source>" --type <book|paper|document> \\
-     --title "$TITLE" --slug "$SLUG" --output "$OUTPUT_DIR" --force
+     --title "$SAFE_TITLE" --slug "$SLUG" --output "$OUTPUT_DIR" --force
    \`\`\`
 
 ## Sample — first 220 lines
 
-\`\`\`
-$SAMPLE_HEAD
+\`\`\`text
+$SAMPLE_HEAD_SAFE
 \`\`\`
 
 ## Sample — last 80 lines
 
-\`\`\`
-$SAMPLE_TAIL
+\`\`\`text
+$SAMPLE_TAIL_SAFE
 \`\`\`
 EOF
 fi
@@ -300,7 +322,7 @@ The final note for this source belongs in the Knowledge-Hub vault.
 5. Preserve evidence anchors (chapter/section/page). Do not over-summarize or
    rewrite the source's meaning away.
 6. After writing the note, append one line to \`$OBSIDIAN_VAULT/log.md\`:
-   \`## [$(date -u +%Y-%m-%d)] ingest | $TITLE -> $VAULT_FOLDER/$SLUG.md\`
+   \`## [$(date -u +%Y-%m-%d)] ingest | $SAFE_TITLE -> $VAULT_FOLDER/$SLUG.md\`
 
 The packer did NOT create or modify any vault file. You write it after the
 quality self-check in \`AI_READING_TASK.md\`.
@@ -328,7 +350,7 @@ reference index. Read section by section from `segments/`.'
 fi
 
 cat > "$PACK_DIR/AI_READING_TASK.md" <<EOF
-# Reading Task — $TITLE
+# Reading Task — $SAFE_TITLE
 
 Agent: $AGENT_NAME
 Reading type: \`$DETECTED_TYPE\` (confidence: \`$CONFIDENCE\`)
@@ -404,7 +426,7 @@ jq -n \
      }' > "$PACK_DIR/manifest.json"
 
 cat > "$PACK_DIR/README.md" <<EOF
-# Reading-Notes Pack — $TITLE
+# Reading-Notes Pack — $SAFE_TITLE
 
 | | |
 |---|---|
