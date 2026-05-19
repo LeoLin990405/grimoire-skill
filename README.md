@@ -45,7 +45,7 @@
 | **脚本不调 LLM** | 所有 shell 脚本纯文本处理，零 AI 调用；`GRIMOIRE.md.json` 会明确记录 `llm_invoked: false` |
 | **脚本不写 vault** | 笔记模板由脚本生成，但写入 Obsidian 知识库的操作由 Agent 在质量自检通过后执行 |
 | **脚本不装 skill** | 技能包里的 skill 全是候选态（candidate），需要人工审查后，通过 `skills-mgr` 手动晋升 |
-| **Agent 来填** | 脚本交出的是合同（`GRIMOIRE_TASK.md`）：同一段正文，Agent 一次阅读，同时写笔记并挖掘技能 |
+| **两段式·笔记→技能** | 一份合同（`GRIMOIRE_TASK.md`），两个顺序阶段：阶段 1 从源文写类型化笔记；阶段 2 是刻意的「重复学习」——**从刚写好的笔记**（而非原始正文）里挖技能包 |
 
 ### English
 
@@ -55,7 +55,7 @@
 | **Scripts never call an LLM** | All shell scripts are pure text processors; `GRIMOIRE.md.json` records `llm_invoked: false` |
 | **Scripts never write into the vault** | Note scaffolds are generated, but the Obsidian write happens only after the agent passes a quality self-check |
 | **Scripts never install skills** | All extracted skills are candidates; promotion into a managed skill repository requires human review and a separate `skills-mgr` invocation |
-| **The agent fills both** | The agent receives a single contract (`GRIMOIRE_TASK.md`) and makes one reading pass — writing the note and mining skills for the same segment simultaneously |
+| **Two-stage, notes→skills** | One contract (`GRIMOIRE_TASK.md`), two sequential stages: Stage 1 writes the notes from the source; Stage 2 is a deliberate re-learning pass that mines the skill pack **from the notes the agent just wrote**, not the raw source (重复学习) |
 
 ---
 
@@ -135,10 +135,10 @@ chmod 600 ~/.config/mineru/token
 # grimoire.sh 完成后，产出路径形如：
 ./grimoires/<slug>/GRIMOIRE_TASK.md
 
-# 把这个文件的路径告诉 Agent，它会：
-# 1. 逐段阅读 notes/ 和 skills/ 共享的分段 Markdown
-# 2. 同时写笔记 + 挖掘技能候选
-# 3. 完成 whole-book 合并后，将笔记写入 Obsidian vault
+# 把这个文件的路径告诉 Agent，它会（两段式）：
+# 阶段1: 逐段读源文，写类型化笔记，质检后写入 Obsidian vault
+# 阶段2: 重复学习——回头读自己写的笔记，从知识点里挖技能候选
+#        完成 whole-book 合并，技能仅为候选待人工评审
 ```
 
 ---
@@ -182,7 +182,7 @@ chmod 600 ~/.config/mineru/token
 │
 ├── GRIMOIRE.md              # 统一状态面板：类型、页数、vault 目标、边界声明
 ├── GRIMOIRE.md.json         # 机器可读版本（schema: grimoire.workspace.v1）
-├── GRIMOIRE_TASK.md         # Agent 阅读合同（笔记 + 技能，同一 pass）
+├── GRIMOIRE_TASK.md         # Agent 合同（两段式：阶段1 笔记 → 阶段2 从笔记挖技能）
 ├── README.md                # 人类可读摘要
 │
 ├── source/                  # 原始文件（PDF/DOC/PPT）或 source_url.txt
