@@ -72,6 +72,20 @@ scripts/kedou-bili-batch.sh videos.jsonl --out-dir ./kedou-bili --mode notes
 "您今日的使用次数已达上限" → records `quota_limited` and **stops** (resume
 next day); "请求过于频繁" → waits `--rate-limit-wait-ms` then retries.
 
+Report & backlog:
+
+```bash
+scripts/kedou-bili-batch.sh --report  --out-dir ./kedou-bili   # dated summary
+scripts/kedou-bili-batch.sh --backlog --out-dir ./kedou-bili   # → backlog.jsonl
+# OPT-IN, separate task (never auto-run by the batch — playbook rule):
+scripts/whisper-transcribe.sh --backlog ./kedou-bili/manifests/backlog.jsonl
+#   → transcripts → forge.sh <txt> --from-text  (agent writes the note)
+```
+
+`no_chinese_subtitle`/`subtitle_failed` rows go to `backlog.jsonl`;
+recovering them with a LOCAL Whisper model (`mlx_whisper`/`whisper-cli`) is a
+deliberate **separate** step, never mixed into the Kedou batch.
+
 **Deliberate boundary:** the batch reuses the public Kedou web UI per video
 (via `kedou-bili-subs.sh`); it does **not** ship Kedou-API encryption
 replication. Slower but stays on the public interface, strongly rate-limited.

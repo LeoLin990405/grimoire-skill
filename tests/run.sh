@@ -442,6 +442,42 @@ assert_contains "$KP/b4" "kedou-bili-manifest.sh" "batch on a space URL routes t
 assert_contains "$KP/dk" "batch" "doctor mentions the batch route"
 
 # ---------------------------------------------------------------------------
+start "kedou report / backlog + opt-in whisper fallback"
+KW="$TESTROOT/kw"; mkdir -p "$KW/manifests"
+cat > "$KW/manifests/videos.jsonl" <<'EOF'
+{"index":1,"bvid":"BVa","title":"A","url":"https://www.bilibili.com/video/BVa"}
+{"index":2,"bvid":"BVb","title":"B","url":"https://www.bilibili.com/video/BVb"}
+{"index":3,"bvid":"BVc","title":"C","url":"https://www.bilibili.com/video/BVc"}
+EOF
+( source "$SCRIPTS/lib/kedou-progress.sh"
+  kp_record "$KW/manifests/progress.jsonl" 1 BVa done ""
+  kp_record "$KW/manifests/progress.jsonl" 2 BVb no_chinese_subtitle "无中文"
+  kp_record "$KW/manifests/progress.jsonl" 3 BVc subtitle_failed "boom" )
+"$SCRIPTS/kedou-bili-batch.sh" --report --out-dir "$KW" > "$KW/r.out" 2>&1
+assert_contains "$KW/r.out" "by status" "batch --report prints a status breakdown"
+assert_contains "$KW/r.out" "report →" "batch --report writes a dated report file"
+if ls "$KW"/reports/report-*.md >/dev/null 2>&1; then ok "report file created under reports/"; else bad "no report file written"; fi
+"$SCRIPTS/kedou-bili-batch.sh" --backlog --out-dir "$KW" > "$KW/bk.out" 2>&1
+assert_eq "$(jq -s 'length' "$KW/manifests/backlog.jsonl")" "2" "backlog = the 2 non-done rows"
+assert_contains "$KW/bk.out" "whisper-transcribe.sh --backlog" "backlog points at the opt-in Whisper step"
+"$SCRIPTS/whisper-transcribe.sh" "https://www.bilibili.com/video/BV1z" --out-dir "$KW/w" --dry-run > "$KW/w1" 2>&1
+assert_contains "$KW/w1" "fetch audio" "whisper URL path fetches audio first"
+assert_contains "$KW/w1" "forge.sh" "whisper points the transcript at forge --from-text"
+"$SCRIPTS/whisper-transcribe.sh" --backlog "$KW/manifests/backlog.jsonl" --out-dir "$KW/w" --dry-run > "$KW/w2" 2>&1
+assert_contains "$KW/w2" "backlog done: ok=" "whisper --backlog iterates the list"
+assert_fail "whisper rejects a missing local file" "$SCRIPTS/whisper-transcribe.sh" /no/such.mp4 --dry-run
+if "$SCRIPTS/whisper-transcribe.sh" -h >/dev/null 2>&1; then ok "whisper-transcribe -h works"; else bad "whisper-transcribe -h failed"; fi
+"$SCRIPTS/skill-manage.sh" doctor --skill kedou-media-workflow > "$KW/dk" 2>&1 || true
+assert_contains "$KW/dk" "whisper" "doctor reports the Whisper fallback engine"
+
+start "subtitle-note template is two-layer (search-friendly)"
+STPL="$SCRIPT_DIR/templates/subtitle-note-template.md"
+assert_contains "$STPL" "## 1. 摘要层" "template has the Summary layer"
+assert_contains "$STPL" "### 概念索引" "Summary layer adds a concept index (Obsidian search entry)"
+assert_contains "$STPL" "## 2. 原始字幕（存档）" "template isolates raw subtitle into an archive layer"
+assert_contains "$STPL" "<details>" "raw subtitle is folded to not pollute search/outline"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else

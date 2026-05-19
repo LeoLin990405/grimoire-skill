@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Batch playbook "后续增强" landed** (report / backlog / Whisper / 2-layer note):
+  - `kedou-bili-batch.sh --report` (dated summary under `out-dir/reports/`)
+    and `--backlog` (`no_chinese_subtitle`/`subtitle_failed` rows →
+    `manifests/backlog.jsonl`); new `lib/kedou-progress.sh` `kp_report` /
+    `kp_backlog` helpers.
+  - `scripts/whisper-transcribe.sh`: OPT-IN, **separate** local-Whisper
+    fallback (`mlx_whisper`/`whisper-cli`) for backlog or a single URL/file;
+    never auto-run by the batch (playbook rule). Deterministic (yt-dlp audio
+    + local model), no LLM/vault writes; output → `forge.sh --from-text`.
+  - `templates/subtitle-note-template.md` upgraded to a **two-layer**
+    structure: a compact, search-friendly Summary Layer (adds a 概念索引)
+    + a folded archive-only Raw Subtitle layer, so long transcripts no
+    longer pollute Obsidian search/outline.
+  - `skill-manage.sh doctor` now also reports the Whisper engine; recipe
+    doc + README document the report/backlog/Whisper flow and its boundary.
 - **Bilibili space → all Chinese subtitles, batch & resumable** (the batch
   evolution of the single-video path; from the validated playbook):
   - `scripts/lib/kedou-progress.sh`: `progress.jsonl` helpers (record /
