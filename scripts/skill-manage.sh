@@ -12,6 +12,10 @@
 #       Cross-agent presence/mechanism matrix (drift flagged).
 #   skill-manage.sh list
 #       Per-agent skill counts + each agent's own (non-shared) skills.
+#   skill-manage.sh scan
+#       Scan THIS machine: which skill-capable agents are present, how many
+#       skills each holds, plus any extra skill dirs discovered. Prints the
+#       headline count of skill-capable agents.
 #   skill-manage.sh sync --pack <dir> [--agents <csv|all>] [--dry-run]
 #       Re-distribute a pack (use after a Trae/stepfun/deepseek app update
 #       wiped its app-managed dir). Thin wrapper over skill-install.sh.
@@ -30,8 +34,9 @@ source "$SCRIPT_DIR/lib/common.sh"
 # shellcheck source=lib/agent-targets.sh
 source "$SCRIPT_DIR/lib/agent-targets.sh"
 
-usage() { sed -n '2,29p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
+usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURCE[0]}"; exit 0; }
 [[ $# -gt 0 ]] || usage
+case "$1" in -h|--help) usage ;; esac
 CMD="$1"; shift || true
 NAME=""; PACK=""; AGENTS="all"; DRY=false
 while [[ $# -gt 0 ]]; do
@@ -79,6 +84,42 @@ status)
         fi
         printf '  %-9s | %-7s | %-9s | %s\n' "$a" "$pres" "$(at_mech "$a")" "$detail"
     done < <(at_all_agents)
+    ;;
+
+scan)
+    echo "Skill-capable agents on this machine"
+    echo
+    printf '  %-9s | %-7s | %-9s | %6s | %s\n' agent present mechanism skills dir
+    present_count=0
+    while read -r a; do
+        d="$(at_dir "$a")"; pres=no; cnt=0
+        if at_present "$a"; then pres=yes; present_count=$((present_count + 1)); fi
+        [[ -d "$d" ]] && cnt="$(ls "$d" 2>/dev/null | wc -l | tr -d ' ')"
+        printf '  %-9s | %-7s | %-9s | %6s | %s\n' \
+            "$a" "$pres" "$(at_mech "$a")" "$cnt" "${d/#$HOME/~}"
+    done < <(at_all_agents)
+    echo
+    echo "Extra skill dirs discovered (have */SKILL.md, NOT in the registry — FYI):"
+    extra=0
+    while IFS= read -r d; do
+        [[ -d "$d" ]] || continue
+        is_reg=no
+        while read -r a; do [[ "$d" == "$(at_dir "$a")" ]] && is_reg=yes; done < <(at_all_agents)
+        [[ "$is_reg" == yes ]] && continue
+        if ls "$d"/*/SKILL.md >/dev/null 2>&1; then
+            printf '  + %-55s (%s skills)\n' "${d/#$HOME/~}" \
+                "$(ls "$d" 2>/dev/null | wc -l | tr -d ' ')"
+            extra=$((extra + 1))
+        fi
+    done < <( { ls -d "$HOME"/.*/skills 2>/dev/null
+                ls -d "$HOME"/.config/*/skills 2>/dev/null
+                ls -d "$HOME"/.*/builtin/*/*/skills 2>/dev/null; } | sort -u )
+    [[ $extra -eq 0 ]] && echo "  (none)"
+    echo
+    echo "=============================================================="
+    echo " Skill-capable agents present on this machine: $present_count"
+    [[ $extra -gt 0 ]] && echo " (+ $extra extra skill dir(s) discovered, listed above)"
+    echo "=============================================================="
     ;;
 
 list)

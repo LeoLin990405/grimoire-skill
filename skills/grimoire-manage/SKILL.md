@@ -31,6 +31,7 @@ it across agents. Two scripts (repo `scripts/`, mirrored here under `scripts/`):
 
 | Need | Command |
 |---|---|
+| Scan this machine: how many skill-capable agents exist | `skill-manage.sh scan` |
 | See agents + which exist (drive the user choice) | `skill-install.sh --pack <dir> --list` |
 | Preview install (no changes) | `skill-install.sh --pack <dir> --agents <csv> --dry-run` |
 | Install into chosen agents | `skill-install.sh --pack <dir> --agents <csv\|all>` |
