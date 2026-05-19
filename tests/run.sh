@@ -259,6 +259,20 @@ if [[ ! -e "$SBX/.codex/skills/demo-skill" ]]; then ok "uninstall removed the co
     bad "uninstall failed"; fi
 assert_file "$SBX/.codex/skills/ppt-master/x" "uninstall preserved agent-only ppt-master"
 
+start "skill-manage scan: machine inventory + headline count"
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" scan > "$TESTROOT/scan.out" 2>&1
+assert_contains "$TESTROOT/scan.out" "Skill-capable agents on this machine" "scan has a header"
+assert_contains "$TESTROOT/scan.out" "claude" "scan lists registry agents"
+assert_contains "$TESTROOT/scan.out" "Skill-capable agents present on this machine:" "scan prints headline count"
+# SBX has 4 present agents (claude/codex/agents-hub/opencode)
+cnt="$(grep -oE 'present on this machine: [0-9]+' "$TESTROOT/scan.out" | grep -oE '[0-9]+')"
+if [[ "${cnt:-0}" -ge 1 ]]; then ok "scan counts present agents ($cnt)"; else
+    bad "scan headline count not a positive number (got '${cnt:-}')"; fi
+if [[ ! -e "$SBX/.claude/settings.json" ]]; then ok "scan is read-only (no settings.json)"; else
+    bad "scan wrote settings.json"; fi
+if HOME="$SBX" "$SCRIPTS/skill-manage.sh" -h >/dev/null 2>&1; then
+    ok "skill-manage -h works (awk usage)"; else bad "skill-manage -h failed"; fi
+
 # ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
