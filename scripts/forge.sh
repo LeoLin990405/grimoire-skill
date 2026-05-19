@@ -18,6 +18,8 @@
 #   --cloud-ok                   allow MinerU cloud upload for local files
 #   --force                      replace an existing grimoire
 #   --lang <csv>                 subtitle langs for video (default zh.*,en.*,en)
+#   --bili-via <auto|kedou|ytdlp>  Bilibili subtitle route (default auto:
+#                                kedou-bili-subs.sh if opencli present, else yt-dlp)
 #   --skip-doctor                skip the host-config preflight
 #   --dry-run                    print the detected route + commands, do nothing
 #   -h, --help
@@ -32,12 +34,14 @@ DOCTOR="$SCRIPT_DIR/skill-manage.sh"
 usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURCE[0]}"; exit 0; }
 
 INPUT=""; ONLY="both"; LANG_CSV="zh.*,en.*,en"; DRY=false; SKIP_DOCTOR=false
+BILI_VIA="auto"; KEDOU_BILI="$SCRIPT_DIR/kedou-bili-subs.sh"
 PASS=()   # forwarded verbatim to grimoire.sh
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
         --only) ONLY="${2:?}"; PASS+=(--only "$2"); shift 2 ;;
         --lang) LANG_CSV="${2:?}"; shift 2 ;;
+        --bili-via) BILI_VIA="${2:?}"; shift 2 ;;
         --skip-doctor) SKIP_DOCTOR=true; shift ;;
         --dry-run) DRY=true; shift ;;
         --title|--slug|--type|--output|--vault|--agent|--model|--pages)
@@ -70,7 +74,23 @@ else
 fi
 
 # ---- host-config preflight (uses skill-manage.sh doctor) ------------------
-needed_skill() { case "$KIND" in video) echo youtube-clipper ;; pdf) echo mineru-local ;; *) echo "" ;; esac; }
+is_bili() { case "$lc" in *bilibili.com/*|*space.bilibili.com/*) return 0 ;; *) return 1 ;; esac; }
+# bili_route → kedou | ytdlp  (auto = kedou when opencli is installed)
+bili_route() {
+    case "$BILI_VIA" in
+        kedou) echo kedou ;;
+        ytdlp) echo ytdlp ;;
+        auto|*) command -v opencli >/dev/null 2>&1 && echo kedou || echo ytdlp ;;
+    esac
+}
+needed_skill() {
+    case "$KIND" in
+        video) if is_bili && [[ "$(bili_route)" == kedou ]]; then echo kedou-media-workflow
+               else echo youtube-clipper; fi ;;
+        pdf)   echo mineru-local ;;
+        *)     echo "" ;;
+    esac
+}
 NEED="$(needed_skill)"
 if [[ "$SKIP_DOCTOR" != true && -n "$NEED" ]]; then
     echo "[forge] preflight: skill-manage.sh doctor --skill $NEED"
@@ -112,6 +132,18 @@ case "$KIND" in
     fi
     ;;
   video)
+    if is_bili && [[ "$(bili_route)" == kedou ]]; then
+        echo "[forge] Bilibili → Kedou route via kedou-bili-subs.sh (override with --bili-via)"
+        if $DRY; then
+            "$KEDOU_BILI" "$INPUT" --dry-run || true
+            echo "  DRY> <downloaded .srt> ; grimoire.sh --from-text <srt> ${PASS[*]:-}"
+        else
+            SRT="$("$KEDOU_BILI" "$INPUT" | tail -1)"
+            [[ -s "$SRT" ]] || error "kedou-bili-subs.sh returned no .srt for $INPUT"
+            echo "[forge] subtitle: $SRT → grimoire --from-text"
+            "$GRIMOIRE" --from-text "$SRT" ${PASS[*]:-}
+        fi
+    else
     require_cmd yt-dlp
     TMPD="$(mktemp -d "${TMPDIR:-/tmp}/forge-vid.XXXXXX")"
     echo "[forge] acquire: yt-dlp subtitles ($LANG_CSV)"
@@ -135,6 +167,7 @@ case "$KIND" in
         [[ -s "$TXT" ]] || error "Subtitle file was empty after cleaning: $SRT"
         echo "[forge] transcript: $(wc -l <"$TXT" | tr -d ' ') lines → grimoire --from-text"
         "$GRIMOIRE" --from-text "$TXT" ${PASS[*]:-}
+    fi
     fi
     ;;
 esac

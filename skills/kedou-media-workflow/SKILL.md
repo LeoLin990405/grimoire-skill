@@ -65,7 +65,19 @@ After Kedou produces files, prefer local CLI tools:
 - `mlx_whisper` or `whisper-cli` when subtitles are absent and transcription is needed.
 - Knowledge Hub notes should store durable summaries, file paths, source page families, and processing decisions, not raw credentials or private URLs.
 
+## Bilibili subtitle → note (automated recipe)
+
+For a Bilibili video/space URL the repo ships an automated path:
+`scripts/kedou-bili-subs.sh` drives this caption page via OpenCLI and
+prints the downloaded Chinese `.srt`; pipe it into
+`scripts/forge.sh <srt> --from-text --only both`. Full steps + gotchas:
+`references/bilibili-subtitle-to-note.md`. Note shape:
+`templates/subtitle-note-template.md` (agent fills it; scripts never write
+the vault).
+
 ## References
 
 - Read `references/kedou-capabilities.md` for supported page families, workflows, and OpenCLI-derived source notes.
+- Read `references/bilibili-subtitle-to-note.md` for the validated B站
+  字幕→笔记 recipe (OpenCLI + Kedou web, filesystem download wait).
 

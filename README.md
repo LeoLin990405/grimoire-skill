@@ -93,6 +93,12 @@ scripts/forge.sh https://arxiv.org/pdf/1706.03762 --only both
 # 视频（自动 yt-dlp 抓字幕 → 文本 → 笔记+技能）
 scripts/forge.sh "https://youtu.be/XXXX" --only both
 
+# B站：自动走 Kedou 网页（OpenCLI 驱动，比 yt-dlp 更可靠拿中文字幕）
+scripts/forge.sh "https://www.bilibili.com/video/BV..." --only both
+#   --bili-via kedou|ytdlp|auto（默认 auto：装了 opencli 走 kedou，否则 yt-dlp）
+# 也可单独取字幕：
+SRT="$(scripts/kedou-bili-subs.sh https://www.bilibili.com/video/BV...)"
+
 # 已有 Markdown / 纯文本 / 字幕文件，直接进
 scripts/forge.sh notes.md --only skills
 scripts/forge.sh talk.srt --title "某讲座"
@@ -101,8 +107,11 @@ scripts/forge.sh <input> --dry-run    # 只看路由与命令，不执行
 scripts/forge.sh <input> --install    # 顺带跨 agent 安装（透传 grimoire）
 ```
 
-路由:`*.pdf/doc/ppt/img | arXiv URL → mineru-local pdf2md`;`youtube/bilibili/…
-URL → yt-dlp 字幕`;`*.md → --from-markdown`;`*.txt/.srt/.vtt → --from-text`。
+路由:`*.pdf/doc/ppt/img | arXiv URL → mineru-local pdf2md`;`B站 URL → Kedou
+(OpenCLI) 或 yt-dlp`;`其它 youtube/vimeo/… → yt-dlp 字幕`;`*.md →
+--from-markdown`;`*.txt/.srt/.vtt → --from-text`。B站字幕→笔记的完整 recipe
+与坑见 `skills/kedou-media-workflow/references/bilibili-subtitle-to-note.md`;
+字幕笔记模板 `templates/subtitle-note-template.md`(脚本只搭脚手架,agent 填写)。
 
 > **边界不变**:forge 只做「确定性取文本」(pdf2md / yt-dlp,不调 LLM)。笔记与
 > 技能仍由 agent 执行产出的 `GRIMOIRE_TASK.md` 合同来写——脚本不调 LLM 的红线保留。

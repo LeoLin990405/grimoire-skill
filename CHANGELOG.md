@@ -6,6 +6,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Bilibili subtitle automation (from the validated Kedou+OpenCLI playbook).**
+  - `scripts/kedou-bili-subs.sh`: drives Kedou's B站 caption page via OpenCLI
+    to download a video's Chinese `.srt` and print its path. Encodes the
+    playbook gotchas — space-page → video-card extract+list, re-`state` for
+    fresh DOM ids (heuristic locate + `--input-el/--extract-el/--zh-el`
+    overrides), **filesystem-poll download wait** (the broken
+    `opencli wait download` is never used), Chrome `name (1).srt` dedupe,
+    Chinese-only, never echoes cookies/tokens, authorized-use boundary,
+    `--dry-run`. Deterministic acquisition only — no LLM, no vault writes.
+  - `forge.sh`: Bilibili URLs now auto-route to `kedou-bili-subs.sh` when
+    `opencli` is present (else yt-dlp); `--bili-via auto|kedou|ytdlp` to
+    override. Other video hosts and the `youtu.be` path are unchanged.
+  - `templates/subtitle-note-template.md`: the fixed structured note shape
+    (source/srt path, summary, key points, timeline, tool map, principles,
+    local status, reusable commands, action items; no full transcript /
+    credentials). Agent fills it — scripts never write the vault.
+  - `skills/kedou-media-workflow/references/bilibili-subtitle-to-note.md`:
+    the end-to-end recipe; `skill-manage.sh doctor` now reports `opencli`
+    presence/version under the kedou section.
+
 ### Removed
 - **1.5 MB merge cruft.** Deleted `skills/mineru/_restructure-tmp/` (an
   unreferenced restructure artifact); `skills/mineru/` 1.6 MB → 64 KB,
