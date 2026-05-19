@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Example: Upload and parse a local file
+# Example: raw parse layer — upload and parse a local file to Markdown via
+# MinerU. This is the parse step Grimoire builds on; for the full notes +
+# skill-pack run use ./examples/grimoire.sh.
 # Usage: ./examples/parse_local.sh /path/to/document.pdf
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,8 +12,8 @@ echo "=== Upload and parse local file ==="
     "$INPUT" \
     --model vlm \
     --ocr \
-    --output /tmp/mineru-local \
+    --output /tmp/grimoire-parse-local \
     --extract
 
 echo ""
-echo "=== Done! Check /tmp/mineru-local/ for results ==="
+echo "=== Done! Check /tmp/grimoire-parse-local/ for results ==="

@@ -393,8 +393,12 @@ grimoire-skill/
 │   ├── vivo-agent-workflow.md      # Vivo 多源工作流
 │   └── open-source-skill-manager-references.md
 ├── examples/
-│   ├── pdf_to_notes.sh
-│   └── book_to_skill.sh
+│   ├── grimoire.sh             # 旗舰示例：一条命令同出笔记 + 技能包
+│   ├── pdf_to_notes.sh         # 仅笔记
+│   ├── book_to_skill.sh        # 仅技能包
+│   ├── parse_single.sh         # 原始解析层（URL）
+│   ├── parse_local.sh          # 原始解析层（本地文件）
+│   └── parse_batch.py          # 批量解析（MinerU 云端 API）
 ├── SKILL.md                     # Skill 元数据、API 参考、触发词
 ├── CHANGELOG.md
 ├── CONTRIBUTING.md
