@@ -101,6 +101,13 @@ scripts/forge.sh "https://www.bilibili.com/video/BV..." --only both
 # 也可单独取字幕：
 SRT="$(scripts/kedou-bili-subs.sh https://www.bilibili.com/video/BV...)"
 
+# B站整个 UP 空间批量（可续跑、限额感知）
+scripts/kedou-bili-batch.sh "https://space.bilibili.com/<id>" --out-dir ./kedou-bili
+scripts/kedou-bili-batch.sh ./kedou-bili/manifests/videos.jsonl --resume   # 次日续跑
+scripts/kedou-bili-batch.sh --status --out-dir ./kedou-bili
+#   manifest 单独构建：scripts/kedou-bili-manifest.sh <space-url> --out videos.jsonl
+#   （直连空间 API 会风控 412/-352，故经 OpenCLI 捕获页面自身请求）
+
 # 已有 Markdown / 纯文本 / 字幕文件，直接进
 scripts/forge.sh notes.md --only skills
 scripts/forge.sh talk.srt --title "某讲座"
@@ -114,6 +121,8 @@ scripts/forge.sh <input> --install    # 顺带跨 agent 安装（透传 grimoire
 --from-markdown`;`*.txt/.srt/.vtt → --from-text`。B站字幕→笔记的完整 recipe
 与坑见 `skills/kedou-media-workflow/references/bilibili-subtitle-to-note.md`;
 字幕笔记模板 `templates/subtitle-note-template.md`(脚本只搭脚手架,agent 填写)。
+整空间批量见 `kedou-bili-batch.sh`(清单经 OpenCLI 捕获、`progress.jsonl` 可续跑、
+限额感知);**刻意只用 Kedou 公网页面、不内置 Kedou API 加密复刻**。
 
 > **边界不变**:forge 只做「确定性取文本」(pdf2md / yt-dlp,不调 LLM)。笔记与
 > 技能仍由 agent 执行产出的 `GRIMOIRE_TASK.md` 合同来写——脚本不调 LLM 的红线保留。

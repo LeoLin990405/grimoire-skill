@@ -394,6 +394,54 @@ assert_contains "$SCRIPT_DIR/skills/kedou-media-workflow/SKILL.md" "bilibili-sub
 assert_contains "$TESTROOT/dkb" "opencli" "doctor kedou section checks opencli"
 
 # ---------------------------------------------------------------------------
+start "kedou-progress lib: dedupe + resume (bash+jq, no node)"
+KP="$TESTROOT/kp"; mkdir -p "$KP"
+cat > "$KP/m.jsonl" <<'EOF'
+{"index":1,"bvid":"BVa","title":"A","url":"https://www.bilibili.com/video/BVa"}
+{"index":2,"bvid":"BVb","title":"B","url":"https://www.bilibili.com/video/BVb"}
+{"index":3,"bvid":"BVc","title":"C","url":"https://www.bilibili.com/video/BVc"}
+EOF
+( source "$SCRIPTS/lib/kedou-progress.sh"
+  kp_record "$KP/p.jsonl" 1 BVa done ""
+  kp_record "$KP/p.jsonl" 2 BVb no_chinese_subtitle "x"
+  kp_record "$KP/p.jsonl" 2 BVb done "retry"
+  kp_record "$KP/p.jsonl" 3 BVc quota_limited "上限"
+  kp_latest_counts "$KP/p.jsonl" > "$KP/c.json"
+  echo "$(kp_latest_status "$KP/p.jsonl" BVb)" > "$KP/bvb"
+  echo "$(kp_next_resume "$KP/p.jsonl" "$KP/m.jsonl")" > "$KP/nr" )
+assert_eq "$(jq -r '.counts.done' "$KP/c.json")" "2" "latest-per-bvid: 2 done (BVb retried)"
+assert_eq "$(jq -r '.counts.quota_limited' "$KP/c.json")" "1" "quota_limited counted"
+assert_eq "$(cat "$KP/bvb")" "done" "latest status for BVb = done"
+assert_eq "$(cat "$KP/nr")" "3" "next resume = first non-done (BVc=3)"
+
+start "kedou-bili-manifest: from-network + dry-run + reject"
+cat > "$KP/net.json" <<'EOF'
+[{"url":"https://api.bilibili.com/x/space/wbi/arc/search?pn=1","responseBody":"{\"code\":0,\"data\":{\"list\":{\"vlist\":[{\"bvid\":\"BV1a\",\"title\":\"一\",\"aid\":1,\"length\":\"10:00\",\"created\":1},{\"bvid\":\"BV1b\",\"title\":\"二\",\"aid\":2,\"length\":\"20:00\",\"created\":2}]}}}"}]
+EOF
+"$SCRIPTS/kedou-bili-manifest.sh" --from-network "$KP/net.json" --out "$KP/v.jsonl" >/dev/null 2>&1
+assert_eq "$(jq -s 'length' "$KP/v.jsonl")" "2" "from-network → 2 videos"
+assert_eq "$(jq -rs '.[0].url' "$KP/v.jsonl")" "https://www.bilibili.com/video/BV1a" "synthesizes the video URL"
+"$SCRIPTS/kedou-bili-manifest.sh" "https://space.bilibili.com/1" --pages 1 --dry-run > "$KP/md.out" 2>&1
+assert_contains "$KP/md.out" "风控" "manifest dry-run explains the 412/-352 风控 reason"
+assert_contains "$KP/md.out" "opencli browser" "manifest dry-run prints the OpenCLI capture sequence"
+assert_fail "manifest rejects a non-space URL" "$SCRIPTS/kedou-bili-manifest.sh" "https://www.bilibili.com/video/BVx" --dry-run
+
+start "kedou-bili-batch: window / resume / status / space-route (dry)"
+"$SCRIPTS/kedou-bili-batch.sh" "$KP/m.jsonl" --out-dir "$KP/ws" --start 2 --limit 1 --dry-run > "$KP/b1" 2>&1
+assert_contains "$KP/b1" "[2] B (BVb)" "batch --start/--limit selects the right window"
+assert_not_contains "$KP/b1" "[1] A (BVa)" "batch window excludes out-of-range"
+mkdir -p "$KP/ws3/manifests"; cp "$KP/m.jsonl" "$KP/ws3/manifests/videos.jsonl"
+( source "$SCRIPTS/lib/kedou-progress.sh"; kp_record "$KP/ws3/manifests/progress.jsonl" 1 BVa done "" )
+"$SCRIPTS/kedou-bili-batch.sh" "$KP/m.jsonl" --out-dir "$KP/ws3" --resume --dry-run > "$KP/b2" 2>&1
+assert_contains "$KP/b2" "resume → starting at index 2" "batch --resume skips done index 1"
+"$SCRIPTS/kedou-bili-batch.sh" --status --out-dir "$KP/ws3" > "$KP/b3" 2>&1
+assert_contains "$KP/b3" "progress summary" "batch --status prints the summary"
+"$SCRIPTS/kedou-bili-batch.sh" "https://space.bilibili.com/9" --out-dir "$KP/ws4" --dry-run > "$KP/b4" 2>&1
+assert_contains "$KP/b4" "kedou-bili-manifest.sh" "batch on a space URL routes through the manifest capturer"
+"$SCRIPTS/skill-manage.sh" doctor --skill kedou-media-workflow > "$KP/dk" 2>&1 || true
+assert_contains "$KP/dk" "batch" "doctor mentions the batch route"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else

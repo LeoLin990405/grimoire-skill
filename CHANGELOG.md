@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Bilibili space → all Chinese subtitles, batch & resumable** (the batch
+  evolution of the single-video path; from the validated playbook):
+  - `scripts/lib/kedou-progress.sh`: `progress.jsonl` helpers (record /
+    latest-per-bvid counts / next-resume index), pure bash + jq, no node.
+  - `scripts/kedou-bili-manifest.sh`: builds `videos.jsonl` by capturing the
+    space page's own `/x/space/wbi/arc/search` via OpenCLI (direct space API
+    is 风控-blocked: 412 / -352). Deterministic `--from-network <dump>` core
+    + best-effort driver; `--dry-run`.
+  - `scripts/kedou-bili-batch.sh`: resumable, quota-aware orchestrator over
+    a manifest (or space URL). `--start/--end/--limit/--resume/--delay-ms/
+    --rate-limit-wait-ms/--retries/--mode subtitles|notes/--force/--status/
+    --dry-run`. "您今日的使用次数已达上限" → `quota_limited` + STOP;
+    "请求过于频繁" → wait + retry. Reuses `kedou-bili-subs.sh` per video.
+  - `skill-manage.sh doctor` reports the batch routes + jq; recipe doc gains
+    a Batch section; README documents the space-batch flow.
+  - **Boundary:** batch uses only the public Kedou web UI (no Kedou-API
+    encryption replication is shipped); `--mode notes` only stages grimoire
+    contracts — the agent writes notes, scripts never write the vault.
 - **Bilibili subtitle automation (from the validated Kedou+OpenCLI playbook).**
   - `scripts/kedou-bili-subs.sh`: drives Kedou's B站 caption page via OpenCLI
     to download a video's Chinese `.srt` and print its path. Encodes the
