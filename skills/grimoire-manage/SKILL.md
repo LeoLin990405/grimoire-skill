@@ -32,6 +32,7 @@ it across agents. Two scripts (repo `scripts/`, mirrored here under `scripts/`):
 | Need | Command |
 |---|---|
 | Scan this machine: how many skill-capable agents exist | `skill-manage.sh scan` |
+| Check the host has a source skill's config/tools (MinerU server/token, ffmpeg/yt-dlp, Kedou) | `skill-manage.sh doctor [--skill <name>]` |
 | See agents + which exist (drive the user choice) | `skill-install.sh --pack <dir> --list` |
 | Preview install (no changes) | `skill-install.sh --pack <dir> --agents <csv> --dry-run` |
 | Install into chosen agents | `skill-install.sh --pack <dir> --agents <csv\|all>` |

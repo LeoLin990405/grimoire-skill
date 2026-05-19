@@ -294,6 +294,18 @@ if [[ -e "$SCRIPT_DIR/skills/youtube-clipper/.env" ]]; then
 assert_contains "$SCRIPT_DIR/skills/mineru-local/scripts/health-check.sh" \
     "MINERU_LOCAL_URL" "mineru-local endpoint is env-configurable"
 
+start "skill-manage doctor: host-config check"
+MINERU_LOCAL_URL="http://127.0.0.1:9" "$SCRIPTS/skill-manage.sh" doctor \
+    > "$TESTROOT/doc.out" 2>&1 || true
+assert_contains "$TESTROOT/doc.out" "[mineru-local]" "doctor checks mineru-local"
+assert_contains "$TESTROOT/doc.out" "[youtube-clipper]" "doctor checks youtube-clipper"
+assert_contains "$TESTROOT/doc.out" "[kedou-media-workflow]" "doctor checks kedou"
+assert_not_contains "$TESTROOT/doc.out" '\xE2' "doctor renders emoji, not escapes"
+"$SCRIPTS/skill-manage.sh" doctor --skill youtube-clipper > "$TESTROOT/doc1.out" 2>&1 || true
+assert_contains "$TESTROOT/doc1.out" "youtube-clipper" "doctor --skill filters to one"
+assert_not_contains "$TESTROOT/doc1.out" "[mineru-local]" "doctor --skill excludes others"
+assert_contains "$TESTROOT/doc.out" "REQUIRED" "doctor reports a required/optional verdict"
+
 # ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
