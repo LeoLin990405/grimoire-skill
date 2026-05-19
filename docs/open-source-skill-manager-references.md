@@ -41,3 +41,21 @@ MinerU should keep a strict boundary:
 
 The skill manager layer can later import root `skills/*.md` from a pack, but it
 should not blindly enable every segment draft under `chapter-skills/*/skills/`.
+
+### Opt-in exception (added)
+
+The default boundary above still holds for the pipeline. An **opt-in** layer
+now ships in-repo for users who explicitly want installation, instead of an
+external-only manager:
+
+- `scripts/skill-install.sh` — installs a reviewed pack into the agents the
+  user explicitly selects (the agent asks; the script never chooses). It
+  records the deliberate boundary crossing in the pack manifest
+  (`red_line_note`, `installed_to`).
+- `scripts/skill-manage.sh` — `status` / `list` / `sync` / `uninstall` /
+  `gate` across agents; per-pack only, never touching an agent's own skills.
+- `scripts/lib/agent-targets.sh` — the verified per-agent topology
+  (copy vs symlink, drift backup, app-managed caveats).
+
+This is invoked only via `grimoire.sh --install` or a direct call — never
+from the default pipeline, which remains candidate-only.

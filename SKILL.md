@@ -1,6 +1,6 @@
 ---
 name: grimoire
-description: Grimoire — turn a PDF/document into reading notes + a reusable skill pack in one parse. Auto-classifies book/paper/document, scaffolds type-specific notes for an Obsidian vault, and mines per-source skills merged per book/course. Built on the MinerU parsing API (OCR, formula/table, batch). Scripts never call an LLM, never write the vault, never install skills — the agent does.
+description: Grimoire — turn a PDF/document/raw text into reading notes + a reusable skill pack in one parse. Auto-classifies book/paper/document, scaffolds type-specific notes for an Obsidian vault, and mines per-source skills merged per book/course. Built on the MinerU parsing API (OCR, formula/table, batch). Scripts never call an LLM and never write the vault; skill install is OPT-IN (--install / scripts/skill-install.sh) and deliberately crosses the candidate-only boundary by explicit user request, recorded in the manifest. Raw text → skill via --from-text; cross-agent install + management via the grimoire-manage companion skill.
 triggers:
   - grimoire
   - 魔典
@@ -24,6 +24,15 @@ triggers:
   - document parsing
   - pdf to markdown
   - extract pdf
+  - 文本转 skill
+  - text to skill
+  - from-text
+  - 把技能装到其它 agent
+  - 跨 agent 安装技能
+  - install skill across agents
+  - skill 没出现在某个 agent
+  - 重新同步技能
+  - skill 确认门
 ---
 
 # Grimoire · 魔典 — Document → Notes + Skill Pack
