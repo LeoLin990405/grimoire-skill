@@ -1,0 +1,4 @@
+interface:
+  display_name: "Kedou Media Workflow"
+  short_description: "Guide Kedou parsing and batch extraction."
+  default_prompt: "Use $kedou-media-workflow to plan a safe Kedou media parsing, subtitle, danmaku, or text extraction workflow."
