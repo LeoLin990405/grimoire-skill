@@ -304,10 +304,11 @@ PY
         echo; echo "[kedou-media-workflow] web video/subtitle parsing"
         have curl && okx "curl" || miss "curl missing"
         if have opencli; then
-            okx "opencli ($(opencli --version 2>/dev/null | head -1 | tr -d '\n' || echo '?')) — Bilibili kedou-bili-subs.sh route available"
+            okx "opencli ($(opencli --version 2>/dev/null | head -1 | tr -d '\n' || echo '?')) — Bilibili single (kedou-bili-subs.sh) + batch (kedou-bili-batch.sh) routes available"
         else
-            warn "opencli not installed — the automated Bilibili subtitle route (scripts/kedou-bili-subs.sh) needs it; forge.sh will fall back to yt-dlp for B站"
+            warn "opencli not installed — the automated Bilibili routes (scripts/kedou-bili-subs.sh single, scripts/kedou-bili-manifest.sh + kedou-bili-batch.sh batch) need it; forge.sh falls back to yt-dlp for B站"
         fi
+        have jq && okx "jq — batch manifest/progress (videos.jsonl / progress.jsonl)" || miss "jq missing (batch needs it)"
         warn "Kedou is a desktop downloader + browser session: ensure the Kedou app/CLI is installed and a valid cookie/proxy/save-path is configured (see skills/kedou-media-workflow/SKILL.md and references/bilibili-subtitle-to-note.md)"
     fi
 
