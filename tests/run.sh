@@ -330,6 +330,36 @@ assert_file "$TESTROOT/fg1/grimoires/forge/GRIMOIRE_TASK.md" "forge book → gri
 assert_file "$TESTROOT/fg2/grimoires/talk/GRIMOIRE_TASK.md" "forge transcript → grimoire contract"
 
 # ---------------------------------------------------------------------------
+start "refactor: behavior-preserving cleanup invariants"
+# (a) 1.5M cruft stays gone
+if [[ -e "$SCRIPT_DIR/skills/mineru/_restructure-tmp" ]]; then
+    bad "skills/mineru/_restructure-tmp must stay deleted"; else
+    ok "merge-cruft _restructure-tmp absent"; fi
+# (b) ensure_fresh_dir keeps each caller's exact message (Grimoire / Pack / …)
+gx="$TESTROOT/efd"; mkmd "$TESTROOT/efd.md"
+"$SCRIPTS/grimoire.sh" --md "$TESTROOT/efd.md" --title EFD --only skills \
+    --output "$gx" --force >/dev/null 2>&1
+"$SCRIPTS/grimoire.sh" --md "$TESTROOT/efd.md" --title EFD --only skills \
+    --output "$gx" > "$TESTROOT/efd.err" 2>&1 && bad "second run without --force should fail" || ok "ensure_fresh_dir blocks re-create"
+assert_contains "$TESTROOT/efd.err" "Grimoire already exists:" "exact 'Grimoire already exists:' wording preserved"
+assert_contains "$TESTROOT/efd.err" "use --force to replace it" "exact --force hint preserved"
+"$SCRIPTS/reading-notes-pack.sh" "$TESTROOT/efd.md" --title EFD --type book \
+    --output "$TESTROOT/efdp" --force >/dev/null 2>&1
+"$SCRIPTS/reading-notes-pack.sh" "$TESTROOT/efd.md" --title EFD --type book \
+    --output "$TESTROOT/efdp" > "$TESTROOT/efdp.err" 2>&1 || true
+assert_contains "$TESTROOT/efdp.err" "Pack already exists:" "reading-notes keeps 'Pack already exists:' wording"
+# (c) legacy wrappers warn but still forward
+"$SCRIPTS/book-skill-pack.sh" -h > "$TESTROOT/wrap.out" 2> "$TESTROOT/wrap.err" || true
+assert_contains "$TESTROOT/wrap.err" "[deprecated]" "book-skill-pack.sh prints deprecation notice"
+assert_contains "$TESTROOT/wrap.out" "source-skill-pack" "book-skill-pack.sh still forwards (target help shown)"
+"$SCRIPTS/vivo-agent-workspace.sh" -h >/dev/null 2> "$TESTROOT/vw.err" || true
+assert_contains "$TESTROOT/vw.err" "[deprecated]" "vivo-agent-workspace.sh prints deprecation notice"
+# (d) skill-install.sh usage() de-brittled (awk leading-comment, exit 0, no stray code)
+"$SCRIPTS/skill-install.sh" -h > "$TESTROOT/si.out" 2>&1
+assert_contains "$TESTROOT/si.out" "OPT-IN cross-agent installer" "skill-install -h shows header help"
+assert_not_contains "$TESTROOT/si.out" "set -euo pipefail" "skill-install -h no longer leaks code lines"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else

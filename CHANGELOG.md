@@ -6,6 +6,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Removed
+- **1.5 MB merge cruft.** Deleted `skills/mineru/_restructure-tmp/` (an
+  unreferenced restructure artifact); `skills/mineru/` 1.6 MB → 64 KB,
+  total repo ≈ 25 % smaller. Behavior unchanged.
+
+### Changed
+- **Behavior-preserving cleanup refactor.** Extracted the repeated
+  "directory exists → `--force` or error" block into
+  `lib/common.sh::ensure_fresh_dir <dir> <force> <label>` and applied it at
+  6 call sites (`grimoire.sh`, `reading-notes-pack.sh`,
+  `source-skill-pack.sh`, `vivo-workspace.sh`, `mineru-to-notes.sh`,
+  `mineru-source-to-skill.sh`). Every user-facing message is byte-identical
+  (`Grimoire/Pack/Output/Workspace already exists: … (use --force to
+  replace it)`). De-brittled `skill-install.sh`'s `usage()` (hardcoded
+  `sed -n '2,33p'` line range → the robust awk leading-comment printer,
+  matching `forge.sh`/`skill-manage.sh`). All 111 prior tests stay green
+  with unaltered assertions; +10 regression tests added (121 total).
+  Public contract unchanged: entrypoint names, flags, GRIMOIRE_TASK.md
+  contract, manifest schemas, SKILL.md `name`/`triggers`, and the red-line
+  declarations are all preserved.
+
+### Deprecated
+- **Legacy compat wrappers.** `book-skill-pack.sh`,
+  `mineru-book-to-skill.sh`, `vivo-agent-workspace.sh` now print a
+  `[deprecated]` notice to stderr and still forward (same exit code/output)
+  to their targets. They will be removed in a future major release; use
+  `source-skill-pack.sh` / `mineru-source-to-skill.sh` / `vivo-workspace.sh`.
+
 ### Fixed
 - **Vault note collision.** `reading-notes-pack.sh` used `--slug` for both
   the workspace dir and the vault note filename, so `grimoire.sh` (which

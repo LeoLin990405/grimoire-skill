@@ -53,3 +53,19 @@ safe_remove_dir() {
 
     rm -rf "$abs"
 }
+
+# ensure_fresh_dir <dir> <force:true|false> [label]
+# If <dir> exists: force=true → safe_remove_dir; else → exit with the exact
+# message "<label> already exists: <dir> (use --force to replace it)".
+# Behavior is byte-identical to the inline blocks it replaces; <label> keeps
+# each caller's original wording (Grimoire / Pack / Output / Workspace).
+ensure_fresh_dir() {
+    local dir="$1" force="$2" label="${3:-Output}"
+    if [[ -e "$dir" ]]; then
+        if [[ "$force" == true ]]; then
+            safe_remove_dir "$dir"
+        else
+            error "$label already exists: $dir (use --force to replace it)"
+        fi
+    fi
+}

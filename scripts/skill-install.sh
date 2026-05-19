@@ -34,7 +34,10 @@ source "$SCRIPT_DIR/lib/common.sh"
 source "$SCRIPT_DIR/lib/agent-targets.sh"
 
 PACK=""; AGENTS=""; NAME=""; LIST=false; DRY=false
-usage() { sed -n '2,33p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0; }
+# Print the leading header-comment block as help (robust: no hardcoded line
+# range — stops at the first non-comment line, same idiom as forge.sh /
+# skill-manage.sh).
+usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURCE[0]}"; exit 0; }
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;

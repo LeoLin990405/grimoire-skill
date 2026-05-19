@@ -68,13 +68,7 @@ require_cmd jq
 [[ -n "$SLUG" ]] || SLUG="$(slugify "$TITLE" "vivo-workspace")"
 WORKSPACE="$OUTPUT_ROOT/$SLUG"
 
-if [[ -e "$WORKSPACE" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        safe_remove_dir "$WORKSPACE"
-    else
-        error "Workspace already exists: $WORKSPACE (use --force to replace it)"
-    fi
-fi
+ensure_fresh_dir "$WORKSPACE" "$FORCE" "Workspace"
 
 mkdir -p \
     "$WORKSPACE/inbox/web" \
