@@ -14,6 +14,8 @@
 
 - [一句话定位](#一句话定位--positioning)
 - [核心理念](#核心理念--core-philosophy)
+- [内置来源技能](#内置来源技能--bundled-source-skills)
+- [一条命令：书 / 视频 → 笔记 + 技能](#一条命令书--视频--笔记--技能--one-command)
 - [快速开始](#快速开始--quick-start)
 - [阅读类型](#阅读类型--reading-types)
 - [Workspace 目录结构](#workspace-目录结构--workspace-layout)
@@ -409,9 +411,13 @@ GRIMOIRE_PARSER=/path/to/local-mineru-parse.sh \
 |------|------|
 | `bash` 3.2+ | 所有脚本的运行时（兼容 macOS 自带 bash 3.2） |
 | `jq` | JSON 处理（`manifest.json` 生成与读取） |
-| `awk` | Markdown 分段 |
-| `find` | 文件枚举 |
-| MinerU token | `~/.config/mineru/token`，从 [mineru.net/apiManage/token](https://mineru.net/apiManage/token) 获取 |
+| `awk` / `find` | Markdown 分段 / 文件枚举 |
+| MinerU token | `~/.config/mineru/token`（云端 fallback 用），从 [mineru.net/apiManage/token](https://mineru.net/apiManage/token) 获取 |
+| `pdf2md` *(可选)* | 本地 MinerU 一行转 MD（`skills/mineru-local`）；缺失时 `forge.sh` 回退到 grimoire 原生云端解析 |
+| `yt-dlp` + `ffmpeg` *(视频)* | `forge.sh` 视频→字幕路径（YouTube 等） |
+| `opencli` *(B站)* | `kedou-bili-subs.sh` / `forge.sh` 的 B站 Kedou 字幕路径；缺失则 B站回退 yt-dlp |
+
+> 用 `scripts/skill-manage.sh doctor [--skill <name>]` 一键体检宿主依赖（缺必需项报错并给修复指引）。
 
 ### 环境变量 · Environment Variables
 
@@ -421,6 +427,7 @@ GRIMOIRE_PARSER=/path/to/local-mineru-parse.sh \
 | `GRIMOIRE_PARSER` | 替换云端解析器（用于本地 MinerU） | `scripts/mineru-parse.sh` |
 | `MINERU_TOKEN_FILE` | Token 文件路径 | `~/.config/mineru/token` |
 | `MINERU_API_BASE` | API 基础 URL | `https://mineru.net/api/v4` |
+| `MINERU_LOCAL_URL` | 本地 MinerU 服务地址（`skills/mineru-local`，已脱敏为可配置） | `http://127.0.0.1:8010` |
 
 ### grimoire.sh 完整选项 · Full Options
 
@@ -437,9 +444,15 @@ Usage: grimoire.sh <url_or_file> [options]
   --agent <name>     阅读 Agent 名称（写入合同文件）
   --vault <path>     Obsidian vault 根目录
   --output <dir>     输出根目录（默认 ./grimoires）
+  --from-markdown <p>  跳过 MinerU，从已转好的 Markdown 文件/目录续跑
+  --from-text <p|->    跳过 MinerU，原始文本/标准输入当源（配 --only skills 即文本→技能）
   --cloud-ok         确认本地文件上传到云端
+  --install          产出后追加跨 agent 安装步骤到合同（显式可选，记入 manifest）
   --force            覆盖已存在的 grimoire
 ```
+
+> 多数情况直接用 **`scripts/forge.sh <书|视频|文本>`** 一条命令即可（自动判类型、
+> 取文本、调 grimoire）；见上文「一条命令」。
 
 ---
 
@@ -448,38 +461,38 @@ Usage: grimoire.sh <url_or_file> [options]
 ```
 grimoire-skill/
 ├── scripts/
-│   ├── grimoire.sh              # 主入口：解析 → 笔记包 + 技能包 → 统一合同
+│   ├── forge.sh                 # ★ 一条命令入口：书/视频/文本 自动路由 → grimoire
+│   ├── grimoire.sh              # 主管线：解析 → 笔记包 + 技能包 → 统一合同
 │   ├── reading-notes-pack.sh    # 笔记管线：分类 + 分段 + 脚手架
 │   ├── source-skill-pack.sh     # 技能管线：分段 + 提炼工作区
 │   ├── mineru-parse.sh          # MinerU 云端解析 CLI 封装
-│   ├── mineru-to-notes.sh       # 解析 + 笔记（独立模式）
-│   ├── mineru-source-to-skill.sh # 解析 + 技能包（独立模式）
-│   ├── vivo-workspace.sh        # Vivo agent workspace（多源混合模式）
+│   ├── kedou-bili-subs.sh       # B站 Kedou 字幕下载（OpenCLI 驱动，--dry-run）
+│   ├── skill-install.sh         # 跨 agent 安装产出技能（显式 opt-in，记 manifest）
+│   ├── skill-manage.sh          # 管理：scan/doctor/status/list/sync/uninstall/gate
+│   ├── mineru-to-notes.sh / mineru-source-to-skill.sh  # 解析+笔记/技能（独立模式）
+│   ├── vivo-workspace.sh / vivo-note-template.sh        # Vivo 多源 agent workspace
+│   ├── book-skill-pack.sh · mineru-book-to-skill.sh · vivo-agent-workspace.sh
+│   │                             #   ⚠️ 已弃用 compat wrapper（仍转发，将移除）
 │   └── lib/
-│       ├── common.sh            # 通用工具函数（slugify、require_cmd 等）
+│       ├── common.sh            # 通用工具（slugify/require_cmd/ensure_fresh_dir…）
 │       ├── reading-types.sh     # 阅读类型分类器（book/paper/document）
 │       ├── source-types.sh      # 11 类来源类型分类器（技能包用）
-│       └── segment.sh           # 共享 Markdown 分段器（笔记+技能共用）
+│       ├── segment.sh           # 共享 Markdown 分段器（笔记+技能共用）
+│       └── agent-targets.sh     # 跨 agent 拓扑（copy/symlink、漂移备份、逐包）
+├── skills/                      # 内置来源/管理技能（见「内置来源技能」）
+│   ├── mineru-local/ · mineru/  # PDF/DOC/PPT/img → Markdown（本地+云）
+│   ├── kedou-media-workflow/    # 网页视频/字幕解析（含 B站→笔记 recipe）
+│   ├── youtube-clipper/         # YouTube 下载+字幕+分章
+│   └── grimoire-manage/         # 跨 agent 安装/管理的配套技能
 ├── templates/
-│   └── reading-notes/
-│       ├── book-notes.md        # 逐章笔记模板
-│       ├── paper-notes.md       # 结构化精读模板
-│       └── document-notes.md    # 内容自适应笔记模板
-├── docs/
-│   ├── reading-notes-workflow.md   # 笔记工作流详解
-│   ├── vivo-agent-workflow.md      # Vivo 多源工作流
-│   └── open-source-skill-manager-references.md
-├── examples/
-│   ├── grimoire.sh             # 旗舰示例：一条命令同出笔记 + 技能包
-│   ├── pdf_to_notes.sh         # 仅笔记
-│   ├── book_to_skill.sh        # 仅技能包
-│   ├── parse_single.sh         # 原始解析层（URL）
-│   ├── parse_local.sh          # 原始解析层（本地文件）
-│   └── parse_batch.py          # 批量解析（MinerU 云端 API）
+│   ├── reading-notes/{book,paper,document}-notes.md
+│   ├── subtitle-note-template.md   # 字幕笔记固定模板（agent 填，脚本不写 vault）
+│   └── vivo/…
+├── docs/                        # reading-notes / vivo / skill-manager 参考
+├── examples/                    # 旗舰 + 单步示例
+├── tests/run.sh + Makefile      # `make test` 离线测试套件（143/0）
 ├── SKILL.md                     # Skill 元数据、API 参考、触发词
-├── CHANGELOG.md
-├── CONTRIBUTING.md
-└── LICENSE
+├── CHANGELOG.md · CONTRIBUTING.md · LICENSE
 ```
 
 ---
@@ -493,13 +506,17 @@ MIT — 详见 [LICENSE](LICENSE)。
 <details>
 <summary>📜 兼容性说明 · Legacy Compatibility</summary>
 
-以下脚本是更早工作流的兼容封装，仍可使用，但新工作流推荐直接使用 `grimoire.sh`：
+这 3 个是 **已弃用的兼容封装**：调用时会向 stderr 打印 `[deprecated]` 提示，
+但仍原样转发（出参/退出码不变），将在未来大版本移除。推荐直接用目标脚本，
+或更上层的 `forge.sh` / `grimoire.sh`：
 
-| 旧脚本 | 等价新命令 |
+| 已弃用 wrapper | 转发目标（请改用） |
 |--------|-----------|
-| `mineru-book-to-skill.sh` | `grimoire.sh --only skills` |
 | `book-skill-pack.sh` | `source-skill-pack.sh` |
-| `mineru-to-notes.sh` | `grimoire.sh --only notes` |
-| `vivo-agent-workspace.sh` | `vivo-workspace.sh`（多源模式） |
+| `mineru-book-to-skill.sh` | `mineru-source-to-skill.sh` |
+| `vivo-agent-workspace.sh` | `vivo-workspace.sh` |
+
+（`mineru-to-notes.sh` / `mineru-source-to-skill.sh` 不是弃用 wrapper，是
+解析+笔记/技能的独立 compound 脚本，继续可用。）
 
 </details>
