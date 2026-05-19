@@ -40,7 +40,9 @@ OBSIDIAN_VAULT="${MINERU_OBSIDIAN_VAULT:-$HOME/Documents/Obsidian-Vaults/Knowled
 ONLY="both"          # both | notes | skills
 CLOUD_OK=false
 FORCE=false
+INSTALL_AFTER=false  # opt-in: append a cross-agent INSTALL step to the contract
 FROM_MARKDOWN=""     # skip parse; continue from already-converted Markdown
+FROM_TEXT=""         # skip parse; treat raw text (.txt file or - = stdin)
 
 usage() {
     cat <<EOF
@@ -70,6 +72,16 @@ Options:
                      is uploaded; <url_or_file> becomes optional. This is
                      the MD-first, opt-in path: convert to Markdown first,
                      then run Grimoire only when you want notes/skills.
+  --from-text <p|->  Skip MinerU and treat raw text as the source: a .txt
+                     file, or - to read stdin. Staged as Markdown, then the
+                     same notes/skills pipeline runs. No upload, no LLM.
+                     Pair with --only skills for a straight text → skill.
+  --install          OPT-IN: after the skill pack is produced & reviewed,
+                     add an INSTALL step to GRIMOIRE_TASK.md that has the
+                     agent ask which global agents to configure, then run
+                     scripts/skill-install.sh. Deliberately crosses the
+                     "scripts never install skills" boundary (recorded in
+                     the manifest). No effect with --only notes.
   --force            Replace an existing grimoire.
   -h, --help         Show this help.
 
@@ -110,6 +122,8 @@ while [[ $# -gt 0 ]]; do
         --output) OUTPUT_ROOT="${2:?Missing value for --output}"; shift 2 ;;
         --cloud-ok) CLOUD_OK=true; shift ;;
         --from-markdown|--md) FROM_MARKDOWN="${2:?Missing value for $1}"; shift 2 ;;
+        --from-text) FROM_TEXT="${2:?Missing value for --from-text}"; shift 2 ;;
+        --install) INSTALL_AFTER=true; shift ;;
         --force) FORCE=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *)
@@ -121,6 +135,27 @@ while [[ $# -gt 0 ]]; do
             ;;
     esac
 done
+
+# --from-text: stage raw text as a Markdown file, then reuse the MD-first
+# path verbatim. Text is already a Markdown subset; the segmenter falls back
+# to a single segment when there are no headings. No upload, no LLM.
+if [[ -n "$FROM_TEXT" ]]; then
+    [[ -n "$FROM_MARKDOWN" ]] && error "--from-text and --from-markdown are mutually exclusive"
+    _text_base="text-source"
+    _text_staged="$(mktemp "${TMPDIR:-/tmp}/grimoire-text.XXXXXX")"
+    _text_md="$_text_staged.md"; mv "$_text_staged" "$_text_md"
+    trap 'rm -f "$_text_md"' EXIT
+    if [[ "$FROM_TEXT" == "-" ]]; then
+        cat > "$_text_md"
+    else
+        [[ -f "$FROM_TEXT" ]] || error "--from-text file not found: $FROM_TEXT"
+        cat -- "$FROM_TEXT" > "$_text_md"
+        _text_base="$(basename "$FROM_TEXT")"; _text_base="${_text_base%.*}"
+    fi
+    [[ -s "$_text_md" ]] || error "--from-text input is empty"
+    [[ -z "$TITLE" ]] && TITLE="$_text_base"
+    FROM_MARKDOWN="$_text_md"
+fi
 
 if [[ -n "$FROM_MARKDOWN" ]]; then
     [[ -e "$FROM_MARKDOWN" ]] || error "--from-markdown path not found: $FROM_MARKDOWN"
@@ -422,6 +457,29 @@ per source: \`skills/whole-book/WHOLE_BOOK_SUMMARY.md\`, \`skills/MINDMAP.md\`,
 EOF
 fi
 } > "$WORKSPACE_DIR/GRIMOIRE_TASK.md"
+
+if [[ "$INSTALL_AFTER" == true && "$ONLY" != "notes" ]]; then
+cat >> "$WORKSPACE_DIR/GRIMOIRE_TASK.md" <<EOF
+
+## Stage 3 — Install across agents (OPT-IN; crosses the candidate-only boundary)
+
+\`--install\` was set. ONLY after the skill pack is mined and you have
+reviewed/promoted candidates into \`skills/skills/\`, install them across the
+user's agents. This deliberately crosses the default "scripts never install
+skills" boundary **by explicit user request**; \`skill-install.sh\` records it
+in the manifest's \`red_line_note\`.
+
+1. Inventory: \`$SCRIPT_DIR/skill-install.sh --pack "$SKILLS_DIR" --list\`
+2. Ask the user (AskUserQuestion in Claude Code; otherwise ask in chat) WHICH
+   agents to configure — choose only from the \`present = yes\` rows.
+3. Dry-run: \`$SCRIPT_DIR/skill-install.sh --pack "$SKILLS_DIR" --agents <chosen> --dry-run\`
+4. On confirmation, run the same command without \`--dry-run\`. Tell the user
+   to restart each affected agent so it loads the new skills.
+
+Do NOT install without the user's explicit agent choice. Only reviewed skills
+under \`skills/skills/\` are installed; an agent's own skills are never touched.
+EOF
+fi
 
 cat > "$WORKSPACE_DIR/README.md" <<EOF
 # $SAFE_TITLE — Grimoire

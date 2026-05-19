@@ -182,6 +182,84 @@ assert_fail "bad --from-markdown is rejected" \
     "$SCRIPTS/grimoire.sh" --from-markdown "$TESTROOT/nope.md"
 
 # ---------------------------------------------------------------------------
+start "grimoire --from-text (raw text → skill, no MinerU)"
+txt="$TESTROOT/raw.txt"
+printf 'Deep work is focus without distraction.\nIt produces high-value output.\n' > "$txt"
+gt="$TESTROOT/g_text"
+GRIMOIRE_PARSER=/bin/false "$SCRIPTS/grimoire.sh" --from-text "$txt" \
+    --only skills --output "$gt" --force >/dev/null 2>&1
+WT="$gt/grimoires/raw"
+assert_file "$WT/GRIMOIRE_TASK.md" "--from-text produced a workspace"
+assert_eq "$(jq -r .title "$WT/GRIMOIRE.md.json")" "raw" "title defaults from text filename"
+assert_eq "$(jq -r .skill_substrate "$WT/skills/manifest.json")" "source" "text→skill uses source substrate"
+printf 'piped body\n' | GRIMOIRE_PARSER=/bin/false "$SCRIPTS/grimoire.sh" \
+    --from-text - --title "Piped" --only skills --output "$TESTROOT/g_stdin" --force >/dev/null 2>&1
+assert_file "$TESTROOT/g_stdin/grimoires/piped/GRIMOIRE_TASK.md" "--from-text - reads stdin"
+assert_fail "--from-text + --from-markdown mutually exclusive" \
+    "$SCRIPTS/grimoire.sh" --from-text "$txt" --from-markdown "$txt"
+
+start "grimoire --install adds the opt-in Stage 3"
+gi="$TESTROOT/g_install"
+GRIMOIRE_PARSER=/bin/false "$SCRIPTS/grimoire.sh" --from-text "$txt" \
+    --only skills --install --output "$gi" --force >/dev/null 2>&1
+ti="$gi/grimoires/raw/GRIMOIRE_TASK.md"
+assert_contains "$ti" "Stage 3 — Install across agents" "--install adds Stage 3"
+assert_contains "$ti" "skill-install.sh" "Stage 3 references skill-install.sh"
+assert_contains "$ti" "AskUserQuestion" "Stage 3 tells the agent to ask the user"
+gin="$TESTROOT/g_noinstall"
+GRIMOIRE_PARSER=/bin/false "$SCRIPTS/grimoire.sh" --md "$md" --title "Deep Work" \
+    --type book --only notes --install --output "$gin" --force >/dev/null 2>&1
+assert_not_contains "$gin/grimoires/deep-work/GRIMOIRE_TASK.md" "Stage 3" \
+    "--install is a no-op with --only notes"
+
+# ---------------------------------------------------------------------------
+start "skill-install: list / dry-run write nothing"
+SBX="$TESTROOT/sbx"; mkdir -p "$SBX/.claude/skills" "$SBX/.codex/skills" \
+    "$SBX/.agents/skills" "$SBX/.config/opencode/skills"
+mkdir -p "$SBX/.codex/skills/ppt-master"; echo keep > "$SBX/.codex/skills/ppt-master/x"
+PKG="$TESTROOT/pkg"; mkdir -p "$PKG/skills/skills/demo-skill"
+printf -- '---\nname: demo-skill\ndescription: d\n---\n# D\n' > "$PKG/skills/skills/demo-skill/SKILL.md"
+printf '{"schema":"grimoire.workspace.v1","installs_skills":false}\n' > "$PKG/GRIMOIRE.md.json"
+HOME="$SBX" "$SCRIPTS/skill-install.sh" --pack "$PKG" --list > "$TESTROOT/list.out" 2>&1
+assert_contains "$TESTROOT/list.out" "demo-skill" "list shows the unit"
+assert_contains "$TESTROOT/list.out" "codex     | yes" "list shows present agents"
+HOME="$SBX" "$SCRIPTS/skill-install.sh" --pack "$PKG" --agents claude,codex --dry-run >/dev/null 2>&1
+if [[ ! -e "$SBX/.claude/skills/demo-skill" ]]; then ok "dry-run wrote nothing"; else
+    bad "dry-run created files"; fi
+
+start "skill-install: real install + manifest + idempotent + preservation"
+HOME="$SBX" "$SCRIPTS/skill-install.sh" --pack "$PKG" --agents claude,codex,opencode >/dev/null 2>&1
+assert_file "$SBX/.claude/skills/demo-skill/SKILL.md" "claude copy installed"
+if [[ -L "$SBX/.codex/skills/demo-skill" ]]; then ok "codex is a symlink"; else
+    bad "codex should be a symlink"; fi
+if [[ -L "$SBX/.config/opencode/skills/demo-skill" ]]; then ok "opencode symlinks to hub"; else
+    bad "opencode should symlink to hub"; fi
+assert_file "$SBX/.codex/skills/ppt-master/x" "agent-only ppt-master preserved"
+assert_contains "$PKG/GRIMOIRE.md.json" "red_line_note" "manifest records red_line_note"
+assert_eq "$(jq -r .installs_skills "$PKG/GRIMOIRE.md.json")" "true" "manifest installs_skills=true"
+HOME="$SBX" "$SCRIPTS/skill-install.sh" --pack "$PKG" --agents claude,codex,opencode \
+    > "$TESTROOT/idem.out" 2>&1
+assert_contains "$TESTROOT/idem.out" "already-ok" "second run is idempotent"
+
+start "skill-manage: status/list/uninstall/gate, never touches settings.json"
+printf '# CLAUDE\n' > "$SBX/.claude/CLAUDE.md"
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" status --name demo-skill > "$TESTROOT/st.out" 2>&1
+assert_contains "$TESTROOT/st.out" "symlink" "status shows codex symlink"
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" list > "$TESTROOT/ls.out" 2>&1
+assert_contains "$TESTROOT/ls.out" "ppt-master" "list flags agent-only ppt-master"
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" gate >/dev/null 2>&1
+assert_file "$SBX/.claude/skills/.preflight/PREFLIGHT.md" "gate wrote PREFLIGHT.md"
+assert_contains "$SBX/.claude/CLAUDE.md" "BEGIN: skill-preflight-gate" "gate injected paragraph"
+if [[ ! -e "$SBX/.claude/settings.json" ]]; then ok "gate never created settings.json"; else
+    bad "gate touched settings.json"; fi
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" gate > "$TESTROOT/gate2.out" 2>&1
+assert_contains "$TESTROOT/gate2.out" "already has gate" "gate is idempotent"
+HOME="$SBX" "$SCRIPTS/skill-manage.sh" uninstall --name demo-skill --agents codex >/dev/null 2>&1
+if [[ ! -e "$SBX/.codex/skills/demo-skill" ]]; then ok "uninstall removed the codex entry"; else
+    bad "uninstall failed"; fi
+assert_file "$SBX/.codex/skills/ppt-master/x" "uninstall preserved agent-only ppt-master"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else
