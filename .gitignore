@@ -6,3 +6,9 @@
 # Python bytecode
 __pycache__/
 *.pyc
+
+# bundled source skills — never commit user secrets/state
+skills/**/.env
+skills/**/token
+skills/**/*.cookie*
+skills/**/profile/

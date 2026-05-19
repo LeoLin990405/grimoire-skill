@@ -63,6 +63,24 @@
 
 ---
 
+## 内置来源技能 · Bundled Source Skills
+
+仓库自带 4 个「来源获取」技能（`skills/`），让 PDF/视频 → 可读文本这一步在仓库内自洽：
+
+| Skill | 作用 | 喂给 grimoire 的方式 |
+|---|---|---|
+| `skills/mineru-local` | PDF/DOC/PPT/图片 → Markdown（本地 MinerU + 云端 fallback，一行 `pdf2md`）。**第一来源：PDF 书籍**经它转 MD 再读 | 产出 MD → `grimoire.sh --from-markdown <md>` |
+| `skills/mineru` | 旧版纯云端 MinerU API（异步任务 + ZIP，带 examples） | 同上 |
+| `skills/kedou-media-workflow` | 蝌蚪网页解析：在线视频解析、批量字幕/弹幕/歌词提取、图文提取 | 抓到字幕文本 → `grimoire.sh --from-text <txt>` |
+| `skills/youtube-clipper` | YouTube 下载 + 字幕 + AI 分章 + 中英双语字幕 | 字幕文本 → `grimoire.sh --from-text -` |
+
+> **脱敏说明**：`mineru-local` 原本硬编码了作者内网 tailnet 主机，移植进本仓库时
+> 已改为环境变量 `MINERU_LOCAL_URL`（默认 `http://127.0.0.1:8010`）。
+> `youtube-clipper` 只保留 `.env.example`，不提交真实 `.env`（`.gitignore` 已加守卫）。
+> 这些是经用户明确请求纳入仓库的来源技能；安装/启用仍走 `grimoire-manage` 的显式流程。
+
+---
+
 ## 快速开始 · Quick Start
 
 ### 1. 安装 · Install

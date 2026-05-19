@@ -16,6 +16,11 @@
 #       Scan THIS machine: which skill-capable agents are present, how many
 #       skills each holds, plus any extra skill dirs discovered. Prints the
 #       headline count of skill-capable agents.
+#   skill-manage.sh doctor [--skill <name>]
+#       Check whether THIS host has the config/tools the bundled source
+#       skills need (MinerU server/token, ffmpeg/yt-dlp, Kedou, …). Read
+#       only. Exit 1 if a REQUIRED prerequisite is missing (⚠️ warnings
+#       do not fail).
 #   skill-manage.sh sync --pack <dir> [--agents <csv|all>] [--dry-run]
 #       Re-distribute a pack (use after a Trae/stepfun/deepseek app update
 #       wiped its app-managed dir). Thin wrapper over skill-install.sh.
@@ -38,13 +43,14 @@ usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURC
 [[ $# -gt 0 ]] || usage
 case "$1" in -h|--help) usage ;; esac
 CMD="$1"; shift || true
-NAME=""; PACK=""; AGENTS="all"; DRY=false
+NAME=""; PACK=""; AGENTS="all"; DRY=false; SKILL=""
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
         --name) NAME="${2:?Missing value for --name}"; shift 2 ;;
         --pack) PACK="${2:?Missing value for --pack}"; shift 2 ;;
         --agents) AGENTS="${2:?Missing value for --agents}"; shift 2 ;;
+        --skill) SKILL="${2:?Missing value for --skill}"; shift 2 ;;
         --dry-run) DRY=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *) error "Unexpected argument: $1" ;;
@@ -232,6 +238,81 @@ then fully restart Claude Code:
 \"Skill preflight: confirm name/scope/files/risk first (see ~/.claude/skills/.preflight/PREFLIGHT.md)\"}}}'" } ] } ] } }
 ────────────────────────────────────────────────────────────────────
 EOF
+    ;;
+
+doctor)
+    REPO="$(cd "$SCRIPT_DIR/.." && pwd)"
+    REQMISS=0
+    have() { command -v "$1" >/dev/null 2>&1; }
+    okx()  { printf '  ✅ %s\n' "$1"; }
+    warn() { printf '  ⚠️  %s\n' "$1"; }
+    miss() { printf '  ❌ %s\n' "$1"; REQMISS=$((REQMISS + 1)); }
+    want() { [[ -z "$SKILL" || "$SKILL" == "$1" ]]; }
+    tok_status() {
+        local t="$HOME/.config/mineru/token"
+        if [[ ! -f "$t" ]]; then warn "cloud token ~/.config/mineru/token absent (cloud fallback unavailable)"; return; fi
+        if have python3; then
+            python3 - "$t" <<'PY' 2>/dev/null || warn "cloud token present but unreadable"
+import base64,json,sys,datetime,pathlib
+p=pathlib.Path(sys.argv[1]).read_text().strip().split(".")
+d=lambda s:base64.urlsafe_b64decode(s+"="*(-len(s)%4))
+exp=datetime.datetime.fromtimestamp(json.loads(d(p[1]))["exp"])
+left=(exp-datetime.datetime.now()).days
+print(f"  {'✅' if left>7 else '⚠️ '} cloud token exp {exp:%Y-%m-%d} ({left}d left)")
+PY
+        else okx "cloud token present (install python3 to check expiry)"; fi
+    }
+
+    echo "Host config check for bundled source skills${SKILL:+ — $SKILL}"
+    echo "(read-only; ❌ = required missing → exit 1, ⚠️ = optional)"
+
+    if want mineru-local; then
+        echo; echo "[mineru-local] PDF/DOC/PPT/image → Markdown"
+        have curl && okx "curl" || miss "curl missing (brew install curl)"
+        have jq   && okx "jq"   || miss "jq missing (brew install jq)"
+        url="${MINERU_LOCAL_URL:-http://127.0.0.1:8010}"
+        if curl -fs --max-time 3 "$url/docs" -o /dev/null 2>/dev/null; then
+            okx "local MinerU reachable: $url"
+        else
+            warn "local MinerU NOT reachable at $url — export MINERU_LOCAL_URL=<your-host>, or rely on cloud fallback"
+        fi
+        tok_status
+        have pdf2md && okx "pdf2md helper on PATH" || warn "pdf2md helper not on PATH (optional convenience wrapper)"
+    fi
+
+    if want mineru; then
+        echo; echo "[mineru] legacy cloud MinerU API"
+        have curl && okx "curl" || miss "curl missing"
+        have jq   && okx "jq"   || miss "jq missing"
+        tok_status
+    fi
+
+    if want youtube-clipper; then
+        echo; echo "[youtube-clipper] video → subtitles"
+        if have ffmpeg; then okx "ffmpeg"
+        elif [[ -n "${FFMPEG_PATH:-}" && -x "${FFMPEG_PATH:-}" ]]; then okx "ffmpeg via \$FFMPEG_PATH"
+        else miss "ffmpeg missing (brew install ffmpeg) or set FFMPEG_PATH"; fi
+        have yt-dlp && okx "yt-dlp" || miss "yt-dlp missing (brew install yt-dlp / pip install yt-dlp)"
+        have python3 && okx "python3" || miss "python3 missing"
+        ycd="$REPO/skills/youtube-clipper"
+        if [[ -f "$ycd/.env" ]]; then okx ".env present"
+        elif [[ -f "$ycd/.env.example" ]]; then warn "no .env yet — cp skills/youtube-clipper/.env.example .env and edit FFMPEG_PATH/TARGET_LANGUAGE"
+        fi
+    fi
+
+    if want kedou-media-workflow; then
+        echo; echo "[kedou-media-workflow] web video/subtitle parsing"
+        have curl && okx "curl" || miss "curl missing"
+        warn "Kedou is a desktop downloader + browser session: ensure the Kedou app/CLI is installed and a valid cookie/proxy/save-path is configured (see skills/kedou-media-workflow/SKILL.md)"
+    fi
+
+    echo
+    if [[ $REQMISS -eq 0 ]]; then
+        echo "=== OK — all REQUIRED prerequisites present (review ⚠️ items as needed) ==="
+    else
+        echo "=== $REQMISS REQUIRED prerequisite(s) MISSING — install them before using the affected source skill ==="
+        exit 1
+    fi
     ;;
 
 *) error "Unknown command: $CMD (use -h)" ;;

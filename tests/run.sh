@@ -274,6 +274,39 @@ if HOME="$SBX" "$SCRIPTS/skill-manage.sh" -h >/dev/null 2>&1; then
     ok "skill-manage -h works (awk usage)"; else bad "skill-manage -h failed"; fi
 
 # ---------------------------------------------------------------------------
+start "bundled source skills present + sanitized"
+for s in mineru-local mineru kedou-media-workflow youtube-clipper; do
+    assert_file "$SCRIPT_DIR/skills/$s/SKILL.md" "skills/$s bundled"
+    if head -8 "$SCRIPT_DIR/skills/$s/SKILL.md" 2>/dev/null | grep -q '^name:'; then
+        ok "skills/$s SKILL.md has a name: frontmatter"
+    else bad "skills/$s SKILL.md missing name: frontmatter"; fi
+done
+# secret/endpoint-leak regression guard (the whole point of the import)
+if grep -rIq '100\.124\.57\.48' "$SCRIPT_DIR/skills/" 2>/dev/null; then
+    bad "private tailnet IP leaked into skills/"; else
+    ok "no private IP in skills/ (mineru-local sanitized)"; fi
+if grep -rIq '/Users/leo' "$SCRIPT_DIR/skills/" 2>/dev/null; then
+    bad "absolute machine path leaked into skills/"; else
+    ok "no /Users/leo machine path in skills/"; fi
+if [[ -e "$SCRIPT_DIR/skills/youtube-clipper/.env" ]]; then
+    bad "youtube-clipper/.env should not be committed"; else
+    ok "youtube-clipper/.env not shipped (.env.example kept)"; fi
+assert_contains "$SCRIPT_DIR/skills/mineru-local/scripts/health-check.sh" \
+    "MINERU_LOCAL_URL" "mineru-local endpoint is env-configurable"
+
+start "skill-manage doctor: host-config check"
+MINERU_LOCAL_URL="http://127.0.0.1:9" "$SCRIPTS/skill-manage.sh" doctor \
+    > "$TESTROOT/doc.out" 2>&1 || true
+assert_contains "$TESTROOT/doc.out" "[mineru-local]" "doctor checks mineru-local"
+assert_contains "$TESTROOT/doc.out" "[youtube-clipper]" "doctor checks youtube-clipper"
+assert_contains "$TESTROOT/doc.out" "[kedou-media-workflow]" "doctor checks kedou"
+assert_not_contains "$TESTROOT/doc.out" '\xE2' "doctor renders emoji, not escapes"
+"$SCRIPTS/skill-manage.sh" doctor --skill youtube-clipper > "$TESTROOT/doc1.out" 2>&1 || true
+assert_contains "$TESTROOT/doc1.out" "youtube-clipper" "doctor --skill filters to one"
+assert_not_contains "$TESTROOT/doc1.out" "[mineru-local]" "doctor --skill excludes others"
+assert_contains "$TESTROOT/doc.out" "REQUIRED" "doctor reports a required/optional verdict"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else
