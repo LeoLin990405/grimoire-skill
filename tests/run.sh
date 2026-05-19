@@ -306,6 +306,29 @@ assert_contains "$TESTROOT/doc1.out" "youtube-clipper" "doctor --skill filters t
 assert_not_contains "$TESTROOT/doc1.out" "[mineru-local]" "doctor --skill excludes others"
 assert_contains "$TESTROOT/doc.out" "REQUIRED" "doctor reports a required/optional verdict"
 
+start "forge: one-command auto-routing (book/video/text)"
+fmd="$TESTROOT/forge.md"; printf '# Doc\nFocus deeply.\n' > "$fmd"
+ftxt="$TESTROOT/forge.txt"; printf 'transcript line.\n' > "$ftxt"
+# dry-run routing (offline, no acquisition/grimoire executed)
+"$SCRIPTS/forge.sh" "$fmd" --only skills --dry-run > "$TESTROOT/f1" 2>&1
+assert_contains "$TESTROOT/f1" "kind: markdown" "forge detects markdown"
+assert_contains "$TESTROOT/f1" "from-markdown" "forge routes md → --from-markdown"
+"$SCRIPTS/forge.sh" "$ftxt" --dry-run > "$TESTROOT/f2" 2>&1
+assert_contains "$TESTROOT/f2" "kind: text" "forge detects text"
+assert_contains "$TESTROOT/f2" "from-text" "forge routes txt → --from-text"
+"$SCRIPTS/forge.sh" "https://youtu.be/abc123" --dry-run --skip-doctor > "$TESTROOT/f3" 2>&1
+assert_contains "$TESTROOT/f3" "kind: video" "forge detects a video URL"
+assert_contains "$TESTROOT/f3" "yt-dlp" "forge plans yt-dlp subtitle acquisition"
+"$SCRIPTS/forge.sh" "https://arxiv.org/pdf/2310.06825" --dry-run --skip-doctor > "$TESTROOT/f4" 2>&1
+assert_contains "$TESTROOT/f4" "kind: pdf" "forge detects a PDF/arXiv URL"
+assert_fail "forge rejects an unknown URL" \
+    "$SCRIPTS/forge.sh" "https://example.com/page" --dry-run --skip-doctor
+# real end-to-end: book(.md) and video-transcript(.txt) → contract, no network
+"$SCRIPTS/forge.sh" "$fmd" --only skills --output "$TESTROOT/fg1" --force >/dev/null 2>&1
+assert_file "$TESTROOT/fg1/grimoires/forge/GRIMOIRE_TASK.md" "forge book → grimoire contract"
+"$SCRIPTS/forge.sh" "$ftxt" --title "Talk" --only skills --output "$TESTROOT/fg2" --force >/dev/null 2>&1
+assert_file "$TESTROOT/fg2/grimoires/talk/GRIMOIRE_TASK.md" "forge transcript → grimoire contract"
+
 # ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do

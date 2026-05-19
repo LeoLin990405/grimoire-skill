@@ -81,6 +81,36 @@
 
 ---
 
+## 一条命令：书 / 视频 → 笔记 + 技能 · One Command
+
+`scripts/forge.sh` 把「取文本 → 炼魔典」两步合一,自动识别输入并选对来源技能:
+
+```bash
+# 书籍 / 文档（自动 pdf2md / MinerU → MD → 笔记+技能）
+scripts/forge.sh ~/books/deep-work.pdf --only both
+scripts/forge.sh https://arxiv.org/pdf/1706.03762 --only both
+
+# 视频（自动 yt-dlp 抓字幕 → 文本 → 笔记+技能）
+scripts/forge.sh "https://youtu.be/XXXX" --only both
+
+# 已有 Markdown / 纯文本 / 字幕文件，直接进
+scripts/forge.sh notes.md --only skills
+scripts/forge.sh talk.srt --title "某讲座"
+
+scripts/forge.sh <input> --dry-run    # 只看路由与命令，不执行
+scripts/forge.sh <input> --install    # 顺带跨 agent 安装（透传 grimoire）
+```
+
+路由:`*.pdf/doc/ppt/img | arXiv URL → mineru-local pdf2md`;`youtube/bilibili/…
+URL → yt-dlp 字幕`;`*.md → --from-markdown`;`*.txt/.srt/.vtt → --from-text`。
+
+> **边界不变**:forge 只做「确定性取文本」(pdf2md / yt-dlp,不调 LLM)。笔记与
+> 技能仍由 agent 执行产出的 `GRIMOIRE_TASK.md` 合同来写——脚本不调 LLM 的红线保留。
+> 运行前自动跑 `skill-manage.sh doctor`,缺必需依赖会先报错并给出修复指引
+> (`--skip-doctor` 可跳过)。
+
+---
+
 ## 快速开始 · Quick Start
 
 ### 1. 安装 · Install
