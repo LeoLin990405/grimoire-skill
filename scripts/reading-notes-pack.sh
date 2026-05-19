@@ -26,6 +26,7 @@ TEMPLATE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)/templates/reading-notes"
 OUTPUT_DIR="./reading-note-packs"
 TITLE=""
 SLUG=""
+VAULT_SLUG=""
 READING_TYPE="auto"
 PAGE_COUNT=0
 AGENT_NAME="Agent"
@@ -45,7 +46,12 @@ Arguments:
 
 Options:
   --title <title>    Source title. Defaults to the file/dir basename.
-  --slug <slug>      Pack + vault note slug. Defaults to a sanitized title.
+  --slug <slug>      Pack workspace slug (subdir + scaffold filename).
+                     Defaults to a sanitized title.
+  --vault-slug <s>   Vault note filename slug. Defaults to --slug. Set this
+                     when --slug is a fixed workspace name (e.g. "notes")
+                     so each source still gets its own vault file instead
+                     of overwriting a shared one.
   --type <type>      auto (default) | book | paper | document.
                      auto runs the hybrid classifier.
   --pages <n>        Page count hint, improves auto classification.
@@ -79,6 +85,7 @@ while [[ $# -gt 0 ]]; do
         -h|--help) usage ;;
         --title) TITLE="${2:?Missing value for --title}"; shift 2 ;;
         --slug) SLUG="${2:?Missing value for --slug}"; shift 2 ;;
+        --vault-slug) VAULT_SLUG="${2:?Missing value for --vault-slug}"; shift 2 ;;
         --type|--reading-type) READING_TYPE="${2:?Missing value for $1}"; shift 2 ;;
         --pages) PAGE_COUNT="${2:?Missing value for --pages}"; shift 2 ;;
         --agent) AGENT_NAME="${2:?Missing value for --agent}"; shift 2 ;;
@@ -131,11 +138,16 @@ SAFE_TITLE="${SAFE_TITLE//$'\r'/ }"
 SAFE_TITLE="${SAFE_TITLE//\#/}"
 
 [[ -z "$SLUG" ]] && SLUG="$(slugify "$TITLE" "source")"
+# --vault-slug decouples the vault note filename from the workspace slug, so a
+# fixed --slug (e.g. "notes" from grimoire.sh) no longer makes every source
+# overwrite one shared vault file. Default keeps standalone behavior.
+[[ -z "$VAULT_SLUG" ]] && VAULT_SLUG="$SLUG"
 # slugify drops non-ASCII; a Chinese-only title degrades to a timestamp slug
-# (unstable path, different on every run). Warn so the user can pin --slug.
-case "$SLUG" in
+# (unstable path, different on every run). The vault path is what matters, so
+# warn on VAULT_SLUG; pass --vault-slug (or --slug) to pin it.
+case "$VAULT_SLUG" in
     source-[0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9])
-        echo "Warning: title produced a timestamp slug ('$SLUG'); pass --slug for a stable vault path." >&2 ;;
+        echo "Warning: title produced a timestamp slug ('$VAULT_SLUG'); pass --vault-slug for a stable vault path." >&2 ;;
 esac
 
 PACK_DIR="$OUTPUT_DIR/$SLUG"
@@ -214,7 +226,7 @@ TEMPLATE_FILE="$TEMPLATE_DIR/$(reading_note_template "$DETECTED_TYPE")"
 [[ -f "$TEMPLATE_FILE" ]] || error "Missing note template: $TEMPLATE_FILE"
 UNIT_LABEL="$(reading_unit_label "$DETECTED_TYPE")"
 NOTE_FILE="$NOTES_DIR/$SLUG.md"
-VAULT_TARGET="$OBSIDIAN_VAULT/$VAULT_FOLDER/$SLUG.md"
+VAULT_TARGET="$OBSIDIAN_VAULT/$VAULT_FOLDER/$VAULT_SLUG.md"
 
 cp "$TEMPLATE_FILE" "$NOTE_FILE"
 
@@ -276,7 +288,8 @@ After deciding:
 
    \`\`\`bash
    reading-notes-pack.sh "<same source>" --type <book|paper|document> \\
-     --title "$SAFE_TITLE" --slug "$SLUG" --output "$OUTPUT_DIR" --force
+     --title "$SAFE_TITLE" --slug "$SLUG" --vault-slug "$VAULT_SLUG" \
+     --output "$OUTPUT_DIR" --force
    \`\`\`
 
 ## Sample — first 220 lines
@@ -304,7 +317,7 @@ The final note for this source belongs in the Knowledge-Hub vault.
 | Vault root | \`$OBSIDIAN_VAULT\` |
 | Reading type | \`$DETECTED_TYPE\` |
 | Target folder | \`$VAULT_FOLDER/\` |
-| Target file | \`$SLUG.md\` |
+| Target file | \`$VAULT_SLUG.md\` |
 | Full target path | \`$VAULT_TARGET\` |
 
 ## House-style rules (Knowledge-Hub)
@@ -322,7 +335,7 @@ The final note for this source belongs in the Knowledge-Hub vault.
 5. Preserve evidence anchors (chapter/section/page). Do not over-summarize or
    rewrite the source's meaning away.
 6. After writing the note, append one line to \`$OBSIDIAN_VAULT/log.md\`:
-   \`## [$(date -u +%Y-%m-%d)] ingest | $SAFE_TITLE -> $VAULT_FOLDER/$SLUG.md\`
+   \`## [$(date -u +%Y-%m-%d)] ingest | $SAFE_TITLE -> $VAULT_FOLDER/$VAULT_SLUG.md\`
 
 The packer did NOT create or modify any vault file. You write it after the
 quality self-check in \`AI_READING_TASK.md\`.
@@ -398,6 +411,7 @@ jq -n \
     --arg schema "mineru.reading-notes-pack.v1" \
     --arg title "$TITLE" \
     --arg slug "$SLUG" \
+    --arg vault_slug "$VAULT_SLUG" \
     --arg reading_type "$DETECTED_TYPE" \
     --arg confidence "$CONFIDENCE" \
     --arg vault_target "$VAULT_TARGET" \
@@ -411,6 +425,7 @@ jq -n \
        schema: $schema,
        title: $title,
        slug: $slug,
+       vault_slug: $vault_slug,
        reading_type: $reading_type,
        confidence: $confidence,
        needs_ai_confirmation: $needs_ai,

@@ -6,6 +6,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Fixed
+- **Vault note collision.** `reading-notes-pack.sh` used `--slug` for both
+  the workspace dir and the vault note filename, so `grimoire.sh` (which
+  passes the fixed `--slug notes` to keep the workspace flat) made every
+  source write to the same `Books/notes.md` / `Papers/notes.md` /
+  `Documents/notes.md` — later sources overwrote earlier ones. New
+  `--vault-slug` decouples the vault filename from the workspace slug;
+  `grimoire.sh` now passes the per-source title slug, so each grimoire
+  lands at `<folder>/<title-slug>.md`. Standalone behavior is unchanged
+  (`--vault-slug` defaults to `--slug`); the timestamp-slug warning now
+  tracks the vault slug. Manifest gains `vault_slug`.
+
 ### Added
 - **MD-first gated flow** for `scripts/grimoire.sh`: new
   `--from-markdown <file|dir>` (alias `--md`) skips the MinerU parse and
