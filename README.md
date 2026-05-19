@@ -424,7 +424,7 @@ GRIMOIRE_PARSER=/path/to/local-mineru-parse.sh \
 | MinerU token | `~/.config/mineru/token`（云端 fallback 用），从 [mineru.net/apiManage/token](https://mineru.net/apiManage/token) 获取 |
 | `pdf2md` *(可选)* | 本地 MinerU 一行转 MD（`skills/mineru-local`）；缺失时 `forge.sh` 回退到 grimoire 原生云端解析 |
 | `yt-dlp` + `ffmpeg` *(视频)* | `forge.sh` 视频→字幕路径（YouTube 等） |
-| `opencli` *(B站)* | `kedou-bili-subs.sh` / `forge.sh` 的 B站 Kedou 字幕路径；缺失则 B站回退 yt-dlp |
+| `opencli` *(B站)* | B站 Kedou 字幕路径：`forge.sh`/`kedou-bili-subs.sh`（单视频）+ `kedou-bili-manifest.sh`/`kedou-bili-batch.sh`（整空间批量、可续跑）；缺失则 B站回退 yt-dlp |
 
 > 用 `scripts/skill-manage.sh doctor [--skill <name>]` 一键体检宿主依赖（缺必需项报错并给修复指引）。
 
@@ -475,7 +475,9 @@ grimoire-skill/
 │   ├── reading-notes-pack.sh    # 笔记管线：分类 + 分段 + 脚手架
 │   ├── source-skill-pack.sh     # 技能管线：分段 + 提炼工作区
 │   ├── mineru-parse.sh          # MinerU 云端解析 CLI 封装
-│   ├── kedou-bili-subs.sh       # B站 Kedou 字幕下载（OpenCLI 驱动，--dry-run）
+│   ├── kedou-bili-subs.sh       # B站 单视频 Kedou 字幕下载（OpenCLI，--dry-run）
+│   ├── kedou-bili-manifest.sh   # B站 空间→videos.jsonl（OpenCLI 网络捕获）
+│   ├── kedou-bili-batch.sh      # B站 空间批量：可续跑、限额感知、progress.jsonl
 │   ├── skill-install.sh         # 跨 agent 安装产出技能（显式 opt-in，记 manifest）
 │   ├── skill-manage.sh          # 管理：scan/doctor/status/list/sync/uninstall/gate
 │   ├── mineru-to-notes.sh / mineru-source-to-skill.sh  # 解析+笔记/技能（独立模式）
@@ -487,7 +489,8 @@ grimoire-skill/
 │       ├── reading-types.sh     # 阅读类型分类器（book/paper/document）
 │       ├── source-types.sh      # 11 类来源类型分类器（技能包用）
 │       ├── segment.sh           # 共享 Markdown 分段器（笔记+技能共用）
-│       └── agent-targets.sh     # 跨 agent 拓扑（copy/symlink、漂移备份、逐包）
+│       ├── agent-targets.sh     # 跨 agent 拓扑（copy/symlink、漂移备份、逐包）
+│       └── kedou-progress.sh    # B站批量 progress.jsonl 助手（记录/计数/续跑）
 ├── skills/                      # 内置来源/管理技能（见「内置来源技能」）
 │   ├── mineru-local/ · mineru/  # PDF/DOC/PPT/img → Markdown（本地+云）
 │   ├── kedou-media-workflow/    # 网页视频/字幕解析（含 B站→笔记 recipe）
@@ -499,7 +502,7 @@ grimoire-skill/
 │   └── vivo/…
 ├── docs/                        # reading-notes / vivo / skill-manager 参考
 ├── examples/                    # 旗舰 + 单步示例
-├── tests/run.sh + Makefile      # `make test` 离线测试套件（143/0）
+├── tests/run.sh + Makefile      # `make test` 离线测试套件（全绿，零网络/零 token）
 ├── SKILL.md                     # Skill 元数据、API 参考、触发词
 ├── CHANGELOG.md · CONTRIBUTING.md · LICENSE
 ```
