@@ -26,6 +26,9 @@
 #                       agent then writes the note from the contract).
 #   --force             Re-process even if a subtitle/record exists.
 #   --status            Print the dedup'd progress summary, then exit.
+#   --report            Write a dated summary to out-dir/reports/, then exit.
+#   --backlog           Write no_chinese_subtitle/failed rows to
+#                       out-dir/manifests/backlog.jsonl (for opt-in Whisper).
 #   --dry-run           Print the plan; touch nothing.
 #   -h, --help
 #
@@ -45,7 +48,7 @@ usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURC
 
 INPUT=""; OUT_DIR="./kedou-bili"; START=""; END=""; LIMIT=""; RESUME=false
 DELAY_MS=12000; RL_WAIT_MS=300000; RETRIES=1; MODE=subtitles
-FORCE=false; STATUS=false; DRY=false
+FORCE=false; STATUS=false; DRY=false; REPORT=false; BACKLOG=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
@@ -60,6 +63,8 @@ while [[ $# -gt 0 ]]; do
         --mode) MODE="${2:?}"; shift 2 ;;
         --force) FORCE=true; shift ;;
         --status) STATUS=true; shift ;;
+        --report) REPORT=true; shift ;;
+        --backlog) BACKLOG=true; shift ;;
         --dry-run) DRY=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *) [[ -n "$INPUT" ]] && error "Only one input"; INPUT="$1"; shift ;;
@@ -77,6 +82,26 @@ if [[ "$STATUS" == true ]]; then
     kp_latest_counts "$PROGRESS" | jq .
     echo "subtitles: $(find "$SUB_DIR" -maxdepth 1 -name '*.zh.srt' 2>/dev/null | wc -l | tr -d ' ')"
     [[ -f "$MANIFEST" ]] && echo "next --resume index: $(kp_next_resume "$PROGRESS" "$MANIFEST")"
+    exit 0
+fi
+
+if [[ "$REPORT" == true ]]; then
+    [[ -f "$PROGRESS" ]] || error "No progress at $PROGRESS"
+    rep="$OUT_DIR/reports/report-$(date -u +%Y%m%d-%H%M%S).md"
+    mkdir -p "$(dirname "$rep")"
+    kp_report "$PROGRESS" "$MANIFEST" | tee "$rep"
+    echo "[batch] report → $rep"
+    exit 0
+fi
+
+if [[ "$BACKLOG" == true ]]; then
+    [[ -f "$PROGRESS" && -f "$MANIFEST" ]] || error "Need $PROGRESS and $MANIFEST"
+    bl="$MANI_DIR/backlog.jsonl"
+    kp_backlog "$PROGRESS" "$MANIFEST" > "$bl"
+    n="$(grep -c . "$bl" 2>/dev/null || echo 0)"
+    echo "[batch] $n no-Chinese-subtitle/failed entries → $bl"
+    echo "[batch] opt-in fallback (separate task, NOT auto-run):"
+    echo "  scripts/whisper-transcribe.sh --backlog \"$bl\""
     exit 0
 fi
 

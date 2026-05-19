@@ -104,9 +104,15 @@ SRT="$(scripts/kedou-bili-subs.sh https://www.bilibili.com/video/BV...)"
 # B站整个 UP 空间批量（可续跑、限额感知）
 scripts/kedou-bili-batch.sh "https://space.bilibili.com/<id>" --out-dir ./kedou-bili
 scripts/kedou-bili-batch.sh ./kedou-bili/manifests/videos.jsonl --resume   # 次日续跑
-scripts/kedou-bili-batch.sh --status --out-dir ./kedou-bili
+scripts/kedou-bili-batch.sh --status  --out-dir ./kedou-bili
+scripts/kedou-bili-batch.sh --report  --out-dir ./kedou-bili   # 日报汇总
+scripts/kedou-bili-batch.sh --backlog --out-dir ./kedou-bili   # 无字幕清单
 #   manifest 单独构建：scripts/kedou-bili-manifest.sh <space-url> --out videos.jsonl
 #   （直连空间 API 会风控 412/-352，故经 OpenCLI 捕获页面自身请求）
+
+# 无中文字幕的视频：可选、独立的本地 Whisper 兜底（绝不混入 Kedou 批处理）
+scripts/whisper-transcribe.sh --backlog ./kedou-bili/manifests/backlog.jsonl
+scripts/whisper-transcribe.sh "https://www.bilibili.com/video/BV..."  # 单条
 
 # 已有 Markdown / 纯文本 / 字幕文件，直接进
 scripts/forge.sh notes.md --only skills
@@ -425,6 +431,7 @@ GRIMOIRE_PARSER=/path/to/local-mineru-parse.sh \
 | `pdf2md` *(可选)* | 本地 MinerU 一行转 MD（`skills/mineru-local`）；缺失时 `forge.sh` 回退到 grimoire 原生云端解析 |
 | `yt-dlp` + `ffmpeg` *(视频)* | `forge.sh` 视频→字幕路径（YouTube 等） |
 | `opencli` *(B站)* | B站 Kedou 字幕路径：`forge.sh`/`kedou-bili-subs.sh`（单视频）+ `kedou-bili-manifest.sh`/`kedou-bili-batch.sh`（整空间批量、可续跑）；缺失则 B站回退 yt-dlp |
+| `mlx_whisper` 或 `whisper-cli` *(可选)* | 无中文字幕视频的独立、opt-in 本地转写兜底（`whisper-transcribe.sh`，绝不混入 Kedou 批处理） |
 
 > 用 `scripts/skill-manage.sh doctor [--skill <name>]` 一键体检宿主依赖（缺必需项报错并给修复指引）。
 
@@ -477,7 +484,8 @@ grimoire-skill/
 │   ├── mineru-parse.sh          # MinerU 云端解析 CLI 封装
 │   ├── kedou-bili-subs.sh       # B站 单视频 Kedou 字幕下载（OpenCLI，--dry-run）
 │   ├── kedou-bili-manifest.sh   # B站 空间→videos.jsonl（OpenCLI 网络捕获）
-│   ├── kedou-bili-batch.sh      # B站 空间批量：可续跑、限额感知、progress.jsonl
+│   ├── kedou-bili-batch.sh      # B站 空间批量：续跑/限额/--report/--backlog
+│   ├── whisper-transcribe.sh    # 无字幕兜底：本地 Whisper（独立、opt-in）
 │   ├── skill-install.sh         # 跨 agent 安装产出技能（显式 opt-in，记 manifest）
 │   ├── skill-manage.sh          # 管理：scan/doctor/status/list/sync/uninstall/gate
 │   ├── mineru-to-notes.sh / mineru-source-to-skill.sh  # 解析+笔记/技能（独立模式）

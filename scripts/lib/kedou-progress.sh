@@ -59,3 +59,40 @@ kp_next_resume() {
         | ([ $m[] | select((.bvid as $b | $d | index($b)) | not) ][0].index)
           // (($m | last).index + 1)' "$mf"
 }
+
+# kp_backlog <progress_file> <manifest_jsonl>
+# Manifest rows whose LATEST status is no_chinese_subtitle | subtitle_failed
+# (i.e. candidates for a separate, opt-in Whisper pass). JSONL on stdout.
+kp_backlog() {
+    local pf="$1" mf="$2"
+    [[ -s "$mf" && -s "$pf" ]] || return 0
+    local stuck
+    stuck="$(jq -rs '
+        (reduce .[] as $r ({}; .[$r.bvid]=$r) | [.[]])
+        | map(select(.status=="no_chinese_subtitle" or .status=="subtitle_failed") | .bvid)
+        | .[]' "$pf" 2>/dev/null | sort -u)"
+    [[ -n "$stuck" ]] || return 0
+    jq -c --arg s "$stuck" '
+        ($s | split("\n") | map(select(length>0))) as $b
+        | select(.bvid as $x | $b | index($x))' "$mf"
+}
+
+# kp_report <progress_file> [manifest_jsonl] — human-readable daily summary
+# (counts, max index, next-resume) + a JSON line. Read-only.
+kp_report() {
+    local pf="$1" mf="${2:-}"
+    local j; j="$(kp_latest_counts "$pf")"
+    echo "# Kedou batch report — $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    echo
+    echo "- latest records: $(jq -r '.latest_records' <<<"$j")"
+    echo "- max index seen: $(jq -r '.max_index_seen' <<<"$j")"
+    echo "- by status:"
+    jq -r '.counts | to_entries[]? | "    - \(.key): \(.value)"' <<<"$j"
+    if [[ -n "$mf" && -s "$mf" ]]; then
+        echo "- manifest size: $(jq -s 'length' "$mf")"
+        echo "- next --resume index: $(kp_next_resume "$pf" "$mf")"
+        echo "- backlog (no_chinese_subtitle/subtitle_failed): $(kp_backlog "$pf" "$mf" | grep -c . || echo 0)"
+    fi
+    echo
+    echo "json: $j"
+}

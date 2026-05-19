@@ -309,6 +309,11 @@ PY
             warn "opencli not installed — the automated Bilibili routes (scripts/kedou-bili-subs.sh single, scripts/kedou-bili-manifest.sh + kedou-bili-batch.sh batch) need it; forge.sh falls back to yt-dlp for B站"
         fi
         have jq && okx "jq — batch manifest/progress (videos.jsonl / progress.jsonl)" || miss "jq missing (batch needs it)"
+        if have mlx_whisper || have whisper-cli; then
+            okx "whisper ($(have mlx_whisper && echo mlx_whisper || echo whisper-cli)) — opt-in no_chinese_subtitle fallback (whisper-transcribe.sh)"
+        else
+            warn "no Whisper engine (mlx_whisper / whisper-cli) — the opt-in backlog fallback whisper-transcribe.sh is unavailable; no_chinese_subtitle items stay unrecovered"
+        fi
         warn "Kedou is a desktop downloader + browser session: ensure the Kedou app/CLI is installed and a valid cookie/proxy/save-path is configured (see skills/kedou-media-workflow/SKILL.md and references/bilibili-subtitle-to-note.md)"
     fi
 
