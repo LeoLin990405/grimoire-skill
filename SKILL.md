@@ -35,6 +35,25 @@ triggers:
 > The sections below are the underlying MinerU parsing API reference that the
 > `grimoire` toolchain is built on.
 
+### Flow: Markdown first, the grimoire is opt-in · 先转 MD,魔典是可选续跑
+
+The pipeline is **gated**, not automatic:
+
+1. **Always first → Markdown.** A source becomes Markdown via `pdf2md` /
+   `mineru-local` (or any MinerU parse). For many requests this is the whole
+   job — **stop here**. Do not auto-run notes/skill mining.
+2. **Opt-in → the grimoire.** Only when the user actually wants reading notes
+   and/or a packaged skill, continue **from that Markdown** with
+   `grimoire.sh --from-markdown <md>`. Nothing is re-uploaded; the parse is
+   skipped. `--only notes|skills|both` is the second opt-in: notes only,
+   the skill (engineering-prompt) packaging only, or both.
+
+> 默认只到 MD;笔记 / 把内容封装成 skill 工程提示属于用户主动选择的下游,
+> 用 `--from-markdown` 从已有 MD 续跑,不重新上传、不重复解析。
+
+This keeps the live `pdf2md` / `mineru-local` path unchanged — Grimoire does
+not steal its triggers; it is the deliberate next step after Markdown.
+
 ## Overview
 MinerU converts PDF, DOC, DOCX, PPT, PPTX, PNG, JPG, JPEG, HTML into machine-readable Markdown/JSON. Supports OCR (109 languages), formula/table recognition, cross-page table merging, and batch processing.
 
@@ -327,6 +346,13 @@ note discipline from the document itself.
 # Already have MinerU Markdown? Stage the notes pack directly:
 ~/.claude/skills/mineru/scripts/reading-notes-pack.sh ./mineru-extracted/doc \
   --title "Source Title" --type auto
+
+# RECOMMENDED MD-first continuation: pdf2md already produced Markdown, the
+# user now opts in to the grimoire. No re-upload, no re-parse.
+~/.claude/skills/mineru/scripts/grimoire.sh \
+  --from-markdown ./mineru-extracted/doc \
+  --title "Source Title" \
+  --only both          # or: notes | skills
 ```
 
 ### Classification (hybrid, autonomous)

@@ -7,6 +7,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **MD-first gated flow** for `scripts/grimoire.sh`: new
+  `--from-markdown <file|dir>` (alias `--md`) skips the MinerU parse and
+  continues from already-converted Markdown (e.g. the output of
+  `pdf2md` / `mineru-local`). Nothing is uploaded, nothing is re-parsed;
+  `<url_or_file>` becomes optional. Markdown is the default stopping
+  point — reading notes and skill (engineering-prompt) packaging are
+  deliberate opt-in continuations, gated again by `--only notes|skills|both`.
+  The live `mineru-local` / `pdf2md` path and its triggers are left
+  unchanged; Grimoire does not steal them. `examples/grimoire.sh` flagship
+  example added; `examples/` rebranded to Grimoire.
 - **Grimoire — unified pipeline + repositioning.** New primary entry point
   `scripts/grimoire.sh`: one MinerU parse → one workspace holding BOTH the
   type-specific reading notes AND a per-source skill pack, with a single

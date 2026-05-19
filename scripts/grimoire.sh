@@ -40,6 +40,7 @@ OBSIDIAN_VAULT="${MINERU_OBSIDIAN_VAULT:-$HOME/Documents/Obsidian-Vaults/Knowled
 ONLY="both"          # both | notes | skills
 CLOUD_OK=false
 FORCE=false
+FROM_MARKDOWN=""     # skip parse; continue from already-converted Markdown
 
 usage() {
     cat <<EOF
@@ -63,6 +64,12 @@ Options:
                      ~/Documents/Obsidian-Vaults/Knowledge-Hub
   --output <dir>     Grimoire root. Default: ./grimoires
   --cloud-ok         Confirm local-file upload to the MinerU cloud API.
+  --from-markdown <p>  Skip the MinerU parse and continue from an
+                     already-converted Markdown file or extracted dir
+                     (e.g. the output of pdf2md / mineru-local). Nothing
+                     is uploaded; <url_or_file> becomes optional. This is
+                     the MD-first, opt-in path: convert to Markdown first,
+                     then run Grimoire only when you want notes/skills.
   --force            Replace an existing grimoire.
   -h, --help         Show this help.
 
@@ -102,6 +109,7 @@ while [[ $# -gt 0 ]]; do
         --vault) OBSIDIAN_VAULT="${2:?Missing value for --vault}"; shift 2 ;;
         --output) OUTPUT_ROOT="${2:?Missing value for --output}"; shift 2 ;;
         --cloud-ok) CLOUD_OK=true; shift ;;
+        --from-markdown|--md) FROM_MARKDOWN="${2:?Missing value for $1}"; shift 2 ;;
         --force) FORCE=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *)
@@ -114,15 +122,21 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
-[[ -n "$INPUT" ]] || error "No URL or source file provided. Use --help."
-[[ -x "$PARSER" ]] || error "Parser not executable: $PARSER"
+if [[ -n "$FROM_MARKDOWN" ]]; then
+    [[ -e "$FROM_MARKDOWN" ]] || error "--from-markdown path not found: $FROM_MARKDOWN"
+else
+    [[ -n "$INPUT" ]] || error "No URL or source file provided. Use --help (or --from-markdown to continue from already-converted Markdown)."
+    [[ -x "$PARSER" ]] || error "Parser not executable: $PARSER"
+fi
 [[ -x "$NOTES_PACKER" ]] || error "Notes packer not executable: $NOTES_PACKER"
 [[ -x "$SKILL_PACKER" ]] || error "Skill packer not executable: $SKILL_PACKER"
 require_cmd jq
 validate_reading_type "$READING_TYPE"
 case "$ONLY" in both|notes|skills) : ;; *) error "--only must be both, notes, or skills" ;; esac
 
-if [[ "$INPUT" =~ ^https?:// ]]; then
+if [[ -n "$FROM_MARKDOWN" ]]; then
+    INPUT_KIND="markdown"   # nothing is uploaded; parse step is skipped
+elif [[ "$INPUT" =~ ^https?:// ]]; then
     INPUT_KIND="url"
 else
     INPUT_KIND="file"
@@ -133,7 +147,11 @@ else
 fi
 
 if [[ -z "$TITLE" ]]; then
-    TITLE="$(basename "$INPUT")"
+    if [[ -n "$INPUT" ]]; then
+        TITLE="$(basename "$INPUT")"
+    else
+        TITLE="$(basename "$FROM_MARKDOWN")"
+    fi
     TITLE="${TITLE%.*}"
 fi
 [[ -z "$SLUG" ]] && SLUG="$(slugify "$TITLE" "source")"
@@ -155,26 +173,46 @@ fi
 
 mkdir -p "$SOURCE_DIR" "$MINERU_DIR"
 
-if [[ "$INPUT_KIND" == "file" ]]; then
+if [[ "$INPUT_KIND" == "markdown" ]]; then
+    printf '%s\n' "$FROM_MARKDOWN" > "$SOURCE_DIR/source_markdown.txt"
+elif [[ "$INPUT_KIND" == "file" ]]; then
     cp "$INPUT" "$SOURCE_DIR/$(basename "$INPUT")"
 else
     printf '%s\n' "$INPUT" > "$SOURCE_DIR/source_url.txt"
 fi
 
-# ---- 1. Parse once ---------------------------------------------------
-parse_args=(
-    "$INPUT"
-    --model "$MODEL"
-    --output "$MINERU_DIR"
-    --extract
-    --no-print-md
-    --manifest "$MANIFEST_FILE"
-)
-[[ "$OCR" == true ]] && parse_args+=(--ocr)
-[[ -n "$PAGE_RANGES" ]] && parse_args+=(--pages "$PAGE_RANGES")
+# ---- 1. Parse once (or skip — continue from existing Markdown) -------
+if [[ "$INPUT_KIND" == "markdown" ]]; then
+    echo "[1/4] Continuing from existing Markdown (MinerU parse skipped)..."
+    if [[ -d "$FROM_MARKDOWN" ]]; then
+        EXTRACT_DIR="$(cd "$FROM_MARKDOWN" && pwd)"
+    else
+        # Stage the single Markdown file into the workspace so the grimoire
+        # stays self-contained and the user's original is never mutated.
+        cp "$FROM_MARKDOWN" "$MINERU_DIR/$(basename "$FROM_MARKDOWN")"
+        EXTRACT_DIR="$(cd "$MINERU_DIR" && pwd)"
+    fi
+    # Synthesize the manifest the downstream halves expect. Page count is
+    # unknown from Markdown alone; 0 lets the classifier fall back to
+    # structure/filename signals.
+    jq -n --arg ed "$EXTRACT_DIR" \
+        '{extract_dir: $ed, source: "from-markdown", page_count: 0}' \
+        > "$MANIFEST_FILE"
+else
+    parse_args=(
+        "$INPUT"
+        --model "$MODEL"
+        --output "$MINERU_DIR"
+        --extract
+        --no-print-md
+        --manifest "$MANIFEST_FILE"
+    )
+    [[ "$OCR" == true ]] && parse_args+=(--ocr)
+    [[ -n "$PAGE_RANGES" ]] && parse_args+=(--pages "$PAGE_RANGES")
 
-echo "[1/4] Parsing with MinerU (model: $MODEL)..."
-"$PARSER" "${parse_args[@]}"
+    echo "[1/4] Parsing with MinerU (model: $MODEL)..."
+    "$PARSER" "${parse_args[@]}"
+fi
 
 EXTRACT_DIR="$(jq -r '.extract_dir' "$MANIFEST_FILE")"
 [[ -n "$EXTRACT_DIR" && "$EXTRACT_DIR" != "null" && -d "$EXTRACT_DIR" ]] \
