@@ -225,9 +225,13 @@ PAGE_COUNT="$(jq -r '(.total_page_count // .page_count // 0)' "$MANIFEST_FILE" 2
 DETECTED_TYPE="document"; CONFIDENCE="n/a"; VAULT_TARGET="(skipped)"
 if [[ "$ONLY" == "both" || "$ONLY" == "notes" ]]; then
     echo "[2/4] Classifying + staging reading notes..."
+    # --slug "notes" keeps the in-workspace dir flat (notes/); --vault-slug
+    # is the per-source title slug so the vault note is unique per grimoire
+    # (Books/<title>.md) instead of every source overwriting Books/notes.md.
     "$NOTES_PACKER" "$EXTRACT_DIR" \
         --title "$TITLE" \
         --slug "notes" \
+        --vault-slug "$SLUG" \
         --type "$READING_TYPE" \
         --pages "$PAGE_COUNT" \
         --agent "$AGENT_NAME" \
