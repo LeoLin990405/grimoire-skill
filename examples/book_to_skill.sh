@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
-# Example: parse a long-form source and stage an LLM-ready skill extraction pack.
+# Example: skills-only path. Parse a long-form source and stage an
+# LLM-ready skill extraction pack.
+#
+# For the full Grimoire run (notes + skill pack in one pass) use
+# ./examples/grimoire.sh instead.
+#
 # Usage: ./examples/book_to_skill.sh /path/to/source.pdf
 
 set -euo pipefail
@@ -10,7 +15,7 @@ TITLE="${2:-}"
 
 echo "=== Parse source and build skill extraction workspace ==="
 
-args=("$INPUT" --output /tmp/mineru-source-workspaces --force --type auto)
+args=("$INPUT" --output /tmp/grimoire-source-workspaces --force --type auto)
 if [[ -n "$TITLE" ]]; then
     args+=(--title "$TITLE")
 fi
@@ -22,4 +27,4 @@ else
 fi
 
 echo ""
-echo "=== Done. Check /tmp/mineru-source-workspaces/sources/ for the source workspace ==="
+echo "=== Done. Check /tmp/grimoire-source-workspaces/sources/ for the source workspace ==="

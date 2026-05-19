@@ -1,6 +1,11 @@
 #!/usr/bin/env bash
-# Example: parse a PDF, auto-classify it as book/paper/document, and stage a
-# type-specific reading-notes workspace for an agent to fill into Obsidian.
+# Example: notes-only path. Parse a PDF, auto-classify it as
+# book/paper/document, and stage a type-specific reading-notes workspace for
+# an agent to fill into Obsidian.
+#
+# For the full Grimoire run (notes + skill pack in one pass) use
+# ./examples/grimoire.sh instead.
+#
 # Usage: ./examples/pdf_to_notes.sh <source_file_or_url> [title]
 
 set -euo pipefail
@@ -11,7 +16,7 @@ TITLE="${2:-}"
 
 echo "=== Parse + auto-classify + scaffold reading notes ==="
 
-args=("$INPUT" --output /tmp/mineru-reading-workspaces --force --type auto)
+args=("$INPUT" --output /tmp/grimoire-reading-workspaces --force --type auto)
 if [[ -n "$TITLE" ]]; then
     args+=(--title "$TITLE")
 fi
@@ -24,5 +29,5 @@ fi
 
 echo ""
 echo "=== Done. Give the agent: ==="
-echo "    /tmp/mineru-reading-workspaces/sources/*/notes/reading-notes-pack/AI_READING_TASK.md"
+echo "    /tmp/grimoire-reading-workspaces/sources/*/notes/reading-notes-pack/AI_READING_TASK.md"
 echo "The detected type and Obsidian vault target are printed above."
