@@ -151,13 +151,7 @@ case "$VAULT_SLUG" in
 esac
 
 PACK_DIR="$OUTPUT_DIR/$SLUG"
-if [[ -e "$PACK_DIR" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        safe_remove_dir "$PACK_DIR"
-    else
-        error "Pack already exists: $PACK_DIR (use --force to replace it)"
-    fi
-fi
+ensure_fresh_dir "$PACK_DIR" "$FORCE" "Pack"
 
 SRC_MD_DIR="$PACK_DIR/source-markdown"
 SEGMENTS_DIR="$PACK_DIR/segments"

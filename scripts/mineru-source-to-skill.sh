@@ -124,13 +124,7 @@ MINERU_DIR="$WORKSPACE_DIR/mineru"
 ANALYSIS_DIR="$WORKSPACE_DIR/analysis"
 MANIFEST_FILE="$MINERU_DIR/parse_manifest.json"
 
-if [[ -e "$WORKSPACE_DIR" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        safe_remove_dir "$WORKSPACE_DIR"
-    else
-        error "Workspace already exists: $WORKSPACE_DIR (use --force to replace it)"
-    fi
-fi
+ensure_fresh_dir "$WORKSPACE_DIR" "$FORCE" "Workspace"
 
 mkdir -p "$SOURCE_DIR" "$MINERU_DIR" "$ANALYSIS_DIR"
 

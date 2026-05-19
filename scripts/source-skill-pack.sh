@@ -160,13 +160,7 @@ fi
 [[ -z "$SLUG" ]] && SLUG="$(slugify "$TITLE" "source-skill-pack")"
 PACK_DIR="$OUTPUT_DIR/$SLUG"
 
-if [[ -e "$PACK_DIR" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        safe_remove_dir "$PACK_DIR"
-    else
-        error "Output already exists: $PACK_DIR (use --force to replace it)"
-    fi
-fi
+ensure_fresh_dir "$PACK_DIR" "$FORCE" "Output"
 
 SEGMENTS_DIR="$PACK_DIR/segments"
 CHAPTER_SKILLS_DIR="$PACK_DIR/chapter-skills"

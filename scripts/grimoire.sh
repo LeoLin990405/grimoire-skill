@@ -198,13 +198,7 @@ NOTES_DIR="$WORKSPACE_DIR/notes"
 SKILLS_DIR="$WORKSPACE_DIR/skills"
 MANIFEST_FILE="$MINERU_DIR/parse_manifest.json"
 
-if [[ -e "$WORKSPACE_DIR" ]]; then
-    if [[ "$FORCE" == true ]]; then
-        safe_remove_dir "$WORKSPACE_DIR"
-    else
-        error "Grimoire already exists: $WORKSPACE_DIR (use --force to replace it)"
-    fi
-fi
+ensure_fresh_dir "$WORKSPACE_DIR" "$FORCE" "Grimoire"
 
 mkdir -p "$SOURCE_DIR" "$MINERU_DIR"
 
