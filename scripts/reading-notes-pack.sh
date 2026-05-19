@@ -225,7 +225,12 @@ VAULT_FOLDER="$(reading_vault_folder "$DETECTED_TYPE")"
 TEMPLATE_FILE="$TEMPLATE_DIR/$(reading_note_template "$DETECTED_TYPE")"
 [[ -f "$TEMPLATE_FILE" ]] || error "Missing note template: $TEMPLATE_FILE"
 UNIT_LABEL="$(reading_unit_label "$DETECTED_TYPE")"
-NOTE_FILE="$NOTES_DIR/$SLUG.md"
+# Scaffold filename mirrors the vault note (per-source), not the workspace
+# slug — so a fixed --slug (grimoire's "notes") no longer yields a
+# meaningless notes/notes/notes.md. Standalone is unchanged (VAULT_SLUG
+# defaults to SLUG).
+NOTE_FILE="$NOTES_DIR/$VAULT_SLUG.md"
+NOTE_FILE_REL="notes/$VAULT_SLUG.md"
 VAULT_TARGET="$OBSIDIAN_VAULT/$VAULT_FOLDER/$VAULT_SLUG.md"
 
 cp "$TEMPLATE_FILE" "$NOTE_FILE"
@@ -324,7 +329,7 @@ The final note for this source belongs in the Knowledge-Hub vault.
 
 1. Match the existing convention. Before writing, open one sibling note in
    \`$OBSIDIAN_VAULT/$VAULT_FOLDER/\` and mirror its frontmatter keys, heading
-   style, and language. The scaffold in \`notes/$SLUG.md\` is a starting point,
+   style, and language. The scaffold in \`$NOTE_FILE_REL\` is a starting point,
    not a fixed schema.
 2. Keep YAML frontmatter (\`title\`, \`tags\`, \`type\`, ...). Use Chinese title
    with English subtitle when the source has one.
@@ -381,7 +386,7 @@ $(if [[ "$DETECTED_TYPE" == "paper" ]]; then echo "- Read the whole paper; it is
 
 ## Step 2 — Write notes
 
-Edit \`notes/$SLUG.md\` (seeded from the \`$DETECTED_TYPE\` template).
+Edit \`$NOTE_FILE_REL\` (seeded from the \`$DETECTED_TYPE\` template).
 
 $DISCIPLINE
 
@@ -412,6 +417,7 @@ jq -n \
     --arg title "$TITLE" \
     --arg slug "$SLUG" \
     --arg vault_slug "$VAULT_SLUG" \
+    --arg note_file "$NOTE_FILE_REL" \
     --arg reading_type "$DETECTED_TYPE" \
     --arg confidence "$CONFIDENCE" \
     --arg vault_target "$VAULT_TARGET" \
@@ -426,6 +432,7 @@ jq -n \
        title: $title,
        slug: $slug,
        vault_slug: $vault_slug,
+       note_file: $note_file,
        reading_type: $reading_type,
        confidence: $confidence,
        needs_ai_confirmation: $needs_ai,
@@ -458,7 +465,7 @@ Give this pack to the reading agent. Entry point: \`AI_READING_TASK.md\`.
 $(if [[ "$NEEDS_AI" == true ]]; then echo "Confidence is low — \`AI_CLASSIFY.md\` (Step 0) runs first."; fi)
 
 The agent reads \`source-markdown/\`$(if [[ "$DETECTED_TYPE" != "paper" ]]; then echo " / \`segments/\`"; fi), fills
-\`notes/$SLUG.md\`, then writes the final note into the vault per
+\`$NOTE_FILE_REL\`, then writes the final note into the vault per
 \`OBSIDIAN_PLAN.md\`.
 EOF
 

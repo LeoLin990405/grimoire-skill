@@ -18,6 +18,7 @@ SLUG=""
 AGENT_NAME="Agent"
 SOURCE_TYPE="auto"
 FORCE=false
+NOTES_SOURCE=""   # set → mine skills FROM written notes (re-learning pass)
 
 usage() {
     cat <<EOF
@@ -37,6 +38,11 @@ Options:
                     article-collection, project-notes, video, audio, web, or mixed.
                     Default: auto.
   --output <dir>     Parent output directory. Default: ./source-skill-packs
+  --notes-source <p> Path to the reading notes the agent already wrote. When
+                     set, the extraction prompt becomes a re-learning pass:
+                     skills are mined FROM those notes' knowledge points, with
+                     source-markdown/ kept only for evidence anchors. Unset
+                     (default) → skills are mined from source-markdown/.
   --force            Replace an existing pack directory.
   -h, --help         Show this help.
 
@@ -70,6 +76,7 @@ while [[ $# -gt 0 ]]; do
         --agent) AGENT_NAME="${2:?Missing value for --agent}"; shift 2 ;;
         --type|--source-type|--text-type) SOURCE_TYPE="${2:?Missing value for $1}"; shift 2 ;;
         --output) OUTPUT_DIR="${2:?Missing value for --output}"; shift 2 ;;
+        --notes-source) NOTES_SOURCE="${2:?Missing value for --notes-source}"; shift 2 ;;
         --force) FORCE=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *)
@@ -86,6 +93,41 @@ done
 [[ -e "$SOURCE" ]] || error "Source not found: $SOURCE"
 
 validate_source_type "$SOURCE_TYPE"
+
+# Skill-extraction substrate. Default: the source Markdown (standalone /
+# --only skills / legacy callers). With --notes-source: a re-learning pass
+# over the reading notes the agent already wrote (the two-stage Grimoire
+# flow — notes first, then skills FROM the notes' knowledge points).
+if [[ -n "$NOTES_SOURCE" ]]; then
+    SKILL_SUBSTRATE="notes"
+    [[ -e "$NOTES_SOURCE" ]] || \
+        echo "Warning: --notes-source path does not exist yet: $NOTES_SOURCE (the agent fills it in Stage 1)" >&2
+    SUBSTRATE_HEADER="Primary substrate: your **reading notes** at \`$NOTES_SOURCE\` (you wrote these in Stage 1).
+Source Markdown directory: \`source-markdown/\` — secondary, evidence/anchor lookup only.
+Segment manifest: \`segments/manifest.json\` (chapter order; the notes follow it)."
+    SUBSTRATE_GOAL="This is a **re-learning pass (重复学习)**. Re-read the notes you wrote in
+Stage 1 and mine reusable skills from the knowledge points you captured
+there. The note is the distilled substrate; go back to \`source-markdown/\`
+only to verify an evidence anchor or recover a concrete procedure the note
+compressed away. Do not re-derive skills from the raw source as if the notes
+did not exist."
+    WORK_ORDER_READ="1. Read \`manifest.json\`, \`segments/manifest.json\`, and your Stage 1
+   reading notes at \`$NOTES_SOURCE\`."
+    WORK_ORDER_PER_SEGMENT="2. For each segment in \`segments/manifest.json\` order, re-read that
+   chapter/section's note block, then fill the matching
+   \`chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\` from the note's
+   knowledge points (use \`source-markdown/\` only for anchors)."
+else
+    SKILL_SUBSTRATE="source"
+    SUBSTRATE_HEADER="Source Markdown directory: \`source-markdown/\`
+Segment manifest: \`segments/manifest.json\`"
+    SUBSTRATE_GOAL="Read the segmented source and extract every piece of content that can
+become an operational skill for the target agent. Classify everything under
+this source first, then use categories inside the source."
+    WORK_ORDER_READ="1. Read \`manifest.json\` and \`segments/manifest.json\`."
+    WORK_ORDER_PER_SEGMENT="2. For each file in \`segments/\`, fill the matching
+   \`chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\`."
+fi
 
 require_cmd jq
 require_cmd find
@@ -398,6 +440,8 @@ jq -n \
     --arg source_type "$DETECTED_SOURCE_TYPE" \
     --arg requested_type "$SOURCE_TYPE" \
     --arg source_path "$SOURCE" \
+    --arg skill_substrate "$SKILL_SUBSTRATE" \
+    --arg notes_source "$NOTES_SOURCE" \
     --arg created_at "$CREATED_AT" \
     --argjson markdown_file_count "${#COPIED_FILES[@]}" \
     --argjson total_bytes "$TOTAL_BYTES" \
@@ -410,6 +454,8 @@ jq -n \
       source_type: $source_type,
       requested_source_type: $requested_type,
       source_path: $source_path,
+      skill_substrate: $skill_substrate,
+      notes_source: $notes_source,
       created_at: $created_at,
       markdown_file_count: $markdown_file_count,
       total_markdown_bytes: $total_bytes,
@@ -533,14 +579,11 @@ You are extracting reusable agent skills from a parsed long-form source.
 Source title: $TITLE
 Detected source type: $DETECTED_SOURCE_TYPE
 Target agent: $AGENT_NAME
-Source Markdown directory: \`source-markdown/\`
-Segment manifest: \`segments/manifest.json\`
+$SUBSTRATE_HEADER
 
 ## Goal
 
-Read the segmented source and extract every piece of content that can become an
-operational skill for the target agent. Classify everything under this source
-first, then use categories inside the source.
+$SUBSTRATE_GOAL
 
 The final answer must make it clear:
 
@@ -553,9 +596,8 @@ The final answer must make it clear:
 
 ## Required Work Order
 
-1. Read \`manifest.json\` and \`segments/manifest.json\`.
-2. For each file in \`segments/\`, fill the matching
-   \`chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\`.
+$WORK_ORDER_READ
+$WORK_ORDER_PER_SEGMENT
 3. Create one narrow candidate skill per operational capability under the
    matching \`chapter-skills/<segment>/skills/\` directory.
 4. Only after segment-level extraction is complete, fill

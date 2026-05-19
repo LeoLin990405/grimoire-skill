@@ -47,9 +47,17 @@ The pipeline is **gated**, not automatic:
    `grimoire.sh --from-markdown <md>`. Nothing is re-uploaded; the parse is
    skipped. `--only notes|skills|both` is the second opt-in: notes only,
    the skill (engineering-prompt) packaging only, or both.
+3. **`--only both` is two-stage, not parallel.** Stage 1 writes the
+   type-specific notes from the source. Stage 2 is a deliberate
+   **re-learning pass (重复学习)**: the agent re-reads the notes it just
+   wrote and mines the skill pack **from those notes' knowledge points**,
+   not the raw source (`source-markdown/` is then only for evidence
+   anchors). `--only skills` (no notes) keeps mining from the source.
 
 > 默认只到 MD;笔记 / 把内容封装成 skill 工程提示属于用户主动选择的下游,
 > 用 `--from-markdown` 从已有 MD 续跑,不重新上传、不重复解析。
+> `--only both` 是两段式:先写笔记,再「重复学习」从笔记里挖技能包,
+> 不是同段并行。
 
 This keeps the live `pdf2md` / `mineru-local` path unchanged — Grimoire does
 not steal its triggers; it is the deliberate next step after Markdown.

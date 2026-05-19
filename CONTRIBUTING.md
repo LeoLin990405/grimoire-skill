@@ -43,13 +43,12 @@ Thanks for your interest in contributing! This guide will help you get started.
 ### Testing
 
 ```bash
-# Verify script syntax
-bash -n scripts/*.sh scripts/lib/*.sh
+# Full offline suite (no token, no network, no real vault). Covers the
+# classifier, vault-slug decoupling, skill substrate modes, the two-stage
+# notes→skills contract, and syntax of every script.
+make test          # or: ./tests/run.sh   (-v for per-assertion output)
 
-# Run with --help
-./scripts/mineru-parse.sh --help
-
-# Test with a public PDF
+# Live parse smoke test with a public PDF (needs a MinerU token)
 ./scripts/mineru-parse.sh https://arxiv.org/pdf/2301.00001.pdf --output /tmp/mineru-test --extract
 ```
 
@@ -63,5 +62,6 @@ bash -n scripts/*.sh scripts/lib/*.sh
 
 - Focused on a single change
 - Includes updated CHANGELOG.md entry
+- `make test` passes (add/extend a case in `tests/run.sh` for new behavior)
 - Script changes are tested locally
 - SKILL.md stays in sync with script capabilities

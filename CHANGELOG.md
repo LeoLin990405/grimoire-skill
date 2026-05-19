@@ -19,6 +19,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   tracks the vault slug. Manifest gains `vault_slug`.
 
 ### Added
+- **Offline test suite** `tests/run.sh` (+ `Makefile`: `make test`).
+  Zero-dependency, no MinerU token / network / real vault: covers the
+  reading-type classifier buckets, vault-slug decoupling, source-skill-pack
+  source-vs-notes substrate modes, the two-stage notes→skills `GRIMOIRE_TASK`
+  contract for `--only both|notes|skills`, error paths, and `bash -n` over
+  every script (45 assertions).
 - **MD-first gated flow** for `scripts/grimoire.sh`: new
   `--from-markdown <file|dir>` (alias `--md`) skips the MinerU parse and
   continues from already-converted Markdown (e.g. the output of
@@ -29,14 +35,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
   The live `mineru-local` / `pdf2md` path and its triggers are left
   unchanged; Grimoire does not steal them. `examples/grimoire.sh` flagship
   example added; `examples/` rebranded to Grimoire.
+- **Two-stage notes→skills (重复学习).** In `--only both`, the
+  `GRIMOIRE_TASK.md` contract is now explicitly sequential: **Stage 1**
+  writes the type-specific reading notes from the source; **Stage 2** is a
+  deliberate re-learning pass that mines the skill pack **from the notes the
+  agent just wrote** (not the raw source), using `source-markdown/` only for
+  evidence anchors. `source-skill-pack.sh` gained `--notes-source`, which
+  rewrites `LLM_EXTRACTION_PROMPT.md` to the notes substrate and records
+  `skill_substrate`/`notes_source` in its manifest. `--only skills` (no
+  notes) and standalone/legacy callers keep mining from `source-markdown/`
+  unchanged. This supersedes the earlier single-pass parallel design.
 - **Grimoire — unified pipeline + repositioning.** New primary entry point
   `scripts/grimoire.sh`: one MinerU parse → one workspace holding BOTH the
   type-specific reading notes AND a per-source skill pack, with a single
-  agent contract (`GRIMOIRE_TASK.md`) that has the agent write the note and
-  mine skills for the same segment in one reading pass. Both halves share
-  one segmentation (`lib/segment.sh`); skills merge per book/course and stay
-  candidates until reviewed. `--only both|notes|skills`, `GRIMOIRE_PARSER`
-  override for local-MinerU/offline.
+  agent contract (`GRIMOIRE_TASK.md`). Both halves share one segmentation
+  (`lib/segment.sh`); skills merge per book/course and stay candidates until
+  reviewed. `--only both|notes|skills`, `GRIMOIRE_PARSER` override for
+  local-MinerU/offline. The reading-notes scaffold filename now mirrors the
+  per-source vault slug (no more `notes/notes/notes.md`); the notes manifest
+  exposes `note_file`.
 - The project is rebranded from a MinerU-API skill to **Grimoire (魔典)**, a
   document → notes + skill-pack knowledge tool. `SKILL.md` `name: grimoire`,
   new bilingual creative `README.md`. Standalone `mineru-to-notes.sh` /

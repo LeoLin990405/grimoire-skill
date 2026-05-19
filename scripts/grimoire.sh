@@ -242,6 +242,8 @@ if [[ "$ONLY" == "both" || "$ONLY" == "notes" ]]; then
     DETECTED_TYPE="$(jq -r '.reading_type' "$NOTES_PACK/manifest.json")"
     CONFIDENCE="$(jq -r '.confidence' "$NOTES_PACK/manifest.json")"
     VAULT_TARGET="$(jq -r '.vault_target' "$NOTES_PACK/manifest.json")"
+    # The note file the agent fills in Stage 1 and re-reads in Stage 2.
+    NOTE_REL_IN_WS="notes/$(jq -r '.note_file' "$NOTES_PACK/manifest.json")"
 else
     echo "[2/4] Notes skipped (--only $ONLY)"
 fi
@@ -253,13 +255,22 @@ if [[ "$ONLY" == "both" || "$ONLY" == "skills" ]]; then
     # type through (book/paper/document are all valid source types too).
     SKILL_TYPE="$READING_TYPE"
     [[ "$SKILL_TYPE" == "auto" && "$DETECTED_TYPE" != "document" ]] && SKILL_TYPE="$DETECTED_TYPE"
-    "$SKILL_PACKER" "$EXTRACT_DIR" \
-        --title "$TITLE" \
-        --slug "skills" \
-        --type "$SKILL_TYPE" \
-        --agent "$AGENT_NAME" \
-        --output "$WORKSPACE_DIR" \
+    skill_args=(
+        "$EXTRACT_DIR"
+        --title "$TITLE"
+        --slug "skills"
+        --type "$SKILL_TYPE"
+        --agent "$AGENT_NAME"
+        --output "$WORKSPACE_DIR"
         --force
+    )
+    # Two-stage: when notes were also produced, skills are mined FROM those
+    # notes (a re-learning pass), not the raw source. --only skills has no
+    # notes → source-markdown stays the substrate.
+    if [[ "$ONLY" == "both" ]]; then
+        skill_args+=(--notes-source "$WORKSPACE_DIR/$NOTE_REL_IN_WS")
+    fi
+    "$SKILL_PACKER" "${skill_args[@]}"
     SKILL_PACK="$SKILLS_DIR"
 else
     echo "[3/4] Skills skipped (--only $ONLY)"
@@ -316,49 +327,101 @@ Scripts parsed and scaffolded only. No note was written into the vault and no
 skill was installed. The agent fills both, reviews skills, then promotes.
 EOF
 
-cat > "$WORKSPACE_DIR/GRIMOIRE_TASK.md" <<EOF
-# Grimoire Task — $SAFE_TITLE
+{
+echo "# Grimoire Task — $SAFE_TITLE"
+echo
+echo "Agent: $AGENT_NAME"
+echo "Reading type: \`$DETECTED_TYPE\` (confidence: \`$CONFIDENCE\`)"
+echo "Scope: \`$ONLY\`. **No LLM has run yet. You are that LLM.**"
+echo
+if [[ "$ONLY" == "both" ]]; then
+cat <<EOF
+This is a **two-stage** task. The flow is deliberately sequential:
+Markdown is already parsed → Stage 1 writes the notes → Stage 2 re-learns
+from those notes to mine the skill pack. **Finish Stage 1 completely before
+starting Stage 2.**
 
-Agent: $AGENT_NAME
-Reading type: \`$DETECTED_TYPE\` (confidence: \`$CONFIDENCE\`)
-Scope: \`$ONLY\`. **No LLM has run yet. You are that LLM.**
+## Stage 1 — Read the source, write the notes
 
-You make ONE reading pass over the parsed source. For each chapter / section
-/ segment you do TWO things in the same pass:
+Follow \`notes/AI_READING_TASK.md\` (type-specific discipline: book = chapter
+notes, paper = structured reading + excerpts, document = content-adaptive
+points). Read the source chapter by chapter via
+\`notes/segments/manifest.json\`, write one note block per unit, end with the
+whole-source synthesis, pass the quality self-check, and land the note in the
+Obsidian vault per \`notes/OBSIDIAN_PLAN.md\`. The note you fill is
+\`$NOTE_REL_IN_WS\`.
 
-1. **Write the note** — follow \`notes/AI_READING_TASK.md\`
-   (type-specific discipline: book = chapter notes, paper = structured
-   reading + excerpts, document = content-adaptive points).
-2. **Mine the skills** — follow \`skills/LLM_EXTRACTION_PROMPT.md\`
-   for the SAME segment: extract only operational content (procedures,
-   checklists, diagnostics, decision rules, prompt/coding patterns) into
-   \`skills/chapter-skills/<segment>/skills/\`.
+## Stage 2 — Re-learn from your notes, mine the skill pack (重复学习)
 
-Then, per book / course (whole-source synthesis):
+Now go back over the notes you just wrote — **NOT** the raw source — and mine
+reusable skills from the knowledge points you captured. This is a deliberate
+second, re-learning pass. Follow \`skills/LLM_EXTRACTION_PROMPT.md\`; it is
+already configured to read your notes (\`$NOTE_REL_IN_WS\`) as the primary
+substrate, with \`skills/source-markdown/\` only for evidence anchors.
 
-3. Merge the segment skills — fill
-   \`skills/whole-book/WHOLE_BOOK_SUMMARY.md\`,
-   \`skills/MINDMAP.md\`, \`skills/BOOK_SKILL_INDEX.md\`;
-   promote reviewed cross-segment candidates into
-   \`skills/skills/\`. This is the "skill pack" for this source.
-4. Finish the notes — whole-source synthesis section, then land the note in
-   the Obsidian vault per \`notes/OBSIDIAN_PLAN.md\`.
+Per chapter/section (same order as Stage 1): fill
+\`skills/chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\` and create narrow
+candidate skills under \`skills/chapter-skills/<segment>/skills/\`. Then merge
+per source: \`skills/whole-book/WHOLE_BOOK_SUMMARY.md\`, \`skills/MINDMAP.md\`,
+\`skills/BOOK_SKILL_INDEX.md\`; promote reviewed cross-segment candidates into
+\`skills/skills/\`. This is the source's "skill pack".
 
 ## Order
 
-Both halves segment the same Markdown identically (shared segmenter), so the
-segment lists line up one-to-one. Use
-\`skills/segments/manifest.json\` as the canonical order; the note's
-\`notes/segments/\` mirrors it ($([[ "$DETECTED_TYPE" == paper ]] && echo "paper notes are read whole" || echo "split the same way")).
+Stage 1 (all notes) → Stage 2 (skills FROM those notes). Both halves share one
+segmentation, so \`skills/segments/manifest.json\` and \`notes/segments/\` line
+up one-to-one ($([[ "$DETECTED_TYPE" == paper ]] && echo "paper notes are read whole" || echo "split the same way")) — Stage 2 maps each note block to its segment.
 
 ## Boundary
 
-- Skills are candidates. Do NOT install/enable them. After review, promote per
-  \`skills/MANAGE_SKILLS.md\`.
-- The note is written to the vault only after its quality self-check passes.
-- Stop only when every segment has both a note and a skill sweep, the
-  whole-source skill pack is merged, and the note exists at the vault target.
+- Skills are candidates. Do NOT install/enable them. Promote per
+  \`skills/MANAGE_SKILLS.md\` after review.
+- The note lands in the vault only after its quality self-check passes.
+- Stop only when every unit has a note, the skill pack is mined FROM those
+  notes and merged, and the note exists at the vault target.
 EOF
+elif [[ "$ONLY" == "notes" ]]; then
+cat <<EOF
+Scope is notes only. One stage.
+
+## Read the source, write the notes
+
+Follow \`notes/AI_READING_TASK.md\` (type-specific discipline: book = chapter
+notes, paper = structured reading + excerpts, document = content-adaptive
+points). Read chapter by chapter via \`notes/segments/manifest.json\`, write
+one note block per unit, end with the whole-source synthesis, pass the quality
+self-check, and land the note in the Obsidian vault per
+\`notes/OBSIDIAN_PLAN.md\`. The note you fill is \`$NOTE_REL_IN_WS\`.
+
+## Boundary
+
+- The note lands in the vault only after its quality self-check passes.
+- No skill pack was staged (\`--only notes\`). To also mine skills from these
+  notes later, re-run grimoire with \`--from-markdown\` and \`--only both\`.
+EOF
+else
+cat <<EOF
+Scope is skills only. No reading notes were produced, so skills are mined
+directly from the parsed source.
+
+## Mine the skill pack from the source
+
+Follow \`skills/LLM_EXTRACTION_PROMPT.md\`. Per segment
+(\`skills/segments/manifest.json\` order): fill
+\`skills/chapter-skills/<segment>/CHAPTER_SKILL_INDEX.md\` and create narrow
+candidate skills under \`skills/chapter-skills/<segment>/skills/\`. Then merge
+per source: \`skills/whole-book/WHOLE_BOOK_SUMMARY.md\`, \`skills/MINDMAP.md\`,
+\`skills/BOOK_SKILL_INDEX.md\`; promote reviewed cross-segment candidates into
+\`skills/skills/\`.
+
+## Boundary
+
+- Skills are candidates. Do NOT install/enable them. Promote per
+  \`skills/MANAGE_SKILLS.md\` after review.
+- For the notes→skills (re-learning) flow, re-run with \`--only both\`.
+EOF
+fi
+} > "$WORKSPACE_DIR/GRIMOIRE_TASK.md"
 
 cat > "$WORKSPACE_DIR/README.md" <<EOF
 # $SAFE_TITLE — Grimoire
