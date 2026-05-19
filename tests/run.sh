@@ -360,6 +360,40 @@ assert_contains "$TESTROOT/si.out" "OPT-IN cross-agent installer" "skill-install
 assert_not_contains "$TESTROOT/si.out" "set -euo pipefail" "skill-install -h no longer leaks code lines"
 
 # ---------------------------------------------------------------------------
+start "kedou-bili-subs: Bilibili subtitle helper (dry-run, offline)"
+"$SCRIPTS/kedou-bili-subs.sh" "https://www.bilibili.com/video/BV1SrLG6oEax" --dry-run > "$TESTROOT/kb.out" 2>&1
+assert_contains "$TESTROOT/kb.out" "opencli browser kedou-bili open https://www.kedou.life" "drives the Kedou caption page via OpenCLI"
+assert_contains "$TESTROOT/kb.out" "filesystem poll" "uses a filesystem download wait"
+assert_contains "$TESTROOT/kb.out" "NOT 'opencli wait download'" "does NOT rely on the broken opencli wait download"
+"$SCRIPTS/kedou-bili-subs.sh" "https://space.bilibili.com/59807853" --dry-run > "$TESTROOT/kb2.out" 2>&1
+assert_contains "$TESTROOT/kb2.out" "space page detected" "space URL → extract + list path"
+assert_contains "$TESTROOT/kb2.out" "--video" "space URL tells you to re-run with --video"
+assert_fail "rejects a non-Bilibili URL" "$SCRIPTS/kedou-bili-subs.sh" "https://youtu.be/x" --dry-run
+if "$SCRIPTS/kedou-bili-subs.sh" -h >/dev/null 2>&1; then ok "kedou-bili-subs -h works"; else bad "kedou-bili-subs -h failed"; fi
+
+start "forge: Bilibili routes to Kedou (override-able), others unchanged"
+"$SCRIPTS/forge.sh" "https://www.bilibili.com/video/BV1x" --bili-via kedou --dry-run --skip-doctor > "$TESTROOT/fb1" 2>&1
+assert_contains "$TESTROOT/fb1" "Bilibili → Kedou route" "bilibili --bili-via kedou → Kedou path"
+"$SCRIPTS/forge.sh" "https://www.bilibili.com/video/BV1x" --bili-via ytdlp --dry-run --skip-doctor > "$TESTROOT/fb2" 2>&1
+assert_contains "$TESTROOT/fb2" "yt-dlp" "bilibili --bili-via ytdlp → yt-dlp path"
+assert_not_contains "$TESTROOT/fb2" "Bilibili → Kedou route" "ytdlp override skips Kedou"
+"$SCRIPTS/forge.sh" "https://youtu.be/keep123" --dry-run --skip-doctor > "$TESTROOT/fb3" 2>&1
+assert_contains "$TESTROOT/fb3" "yt-dlp" "youtu.be still yt-dlp (unchanged)"
+assert_not_contains "$TESTROOT/fb3" "Bilibili → Kedou route" "non-bilibili never takes Kedou path"
+
+start "subtitle template + kedou recipe + doctor opencli"
+TPL="$SCRIPT_DIR/templates/subtitle-note-template.md"
+assert_file "$TPL" "subtitle-note-template.md shipped"
+for sec in "一句话总结" "时间线 / 章节" "工具地图" "后续行动项"; do
+    assert_contains "$TPL" "$sec" "template has section: $sec"
+done
+assert_contains "$TPL" "不要把完整逐字稿塞进笔记" "template states the no-full-transcript boundary"
+assert_file "$SCRIPT_DIR/skills/kedou-media-workflow/references/bilibili-subtitle-to-note.md" "kedou Bilibili recipe shipped"
+assert_contains "$SCRIPT_DIR/skills/kedou-media-workflow/SKILL.md" "bilibili-subtitle-to-note.md" "kedou SKILL.md points at the recipe"
+"$SCRIPTS/skill-manage.sh" doctor --skill kedou-media-workflow > "$TESTROOT/dkb" 2>&1 || true
+assert_contains "$TESTROOT/dkb" "opencli" "doctor kedou section checks opencli"
+
+# ---------------------------------------------------------------------------
 start "all shell scripts parse"
 while IFS= read -r f; do
     if bash -n "$f" 2>/dev/null; then ok "syntax: ${f#$SCRIPT_DIR/}"; else
