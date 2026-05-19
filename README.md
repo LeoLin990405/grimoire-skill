@@ -99,7 +99,23 @@ chmod 600 ~/.config/mineru/token
     --pages "1-120,200-250" \
     --ocr \
     --cloud-ok
+
+# MD-first：已经有 Markdown（如 pdf2md / mineru-local 的产物），
+# 用户此时才主动选择续跑魔典 —— 不重新上传、不重复解析。
+~/.claude/skills/grimoire/scripts/grimoire.sh \
+    --from-markdown ./mineru-extracted/book \
+    --title "Source Title" \
+    --only both          # 或：notes | skills
 ```
+
+> **流程是「带闸门」的,不是自动的 · A gated, not automatic, flow**
+> 先把来源转成 Markdown(`pdf2md` / `mineru-local`)——很多需求**到此为止**。
+> 只有当用户确实想要读书笔记 / 把内容封装成 skill 工程提示时,才用
+> `--from-markdown` 从那份 MD **主动续跑**。`--only notes|skills|both`
+> 是第二道 opt-in。Grimoire 不抢 `mineru-local` 的触发词,它是 MD 之后
+> 刻意为之的下一步。
+> *Markdown first; notes and skill-packaging are deliberate opt-in
+> continuations from that Markdown — nothing is re-uploaded or re-parsed.*
 
 ### 4. 中文自然语言触发示例 · Chinese Trigger Examples
 
