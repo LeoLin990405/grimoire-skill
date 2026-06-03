@@ -321,8 +321,10 @@ assert_contains "$TESTROOT/f3" "kind: video" "forge detects a video URL"
 assert_contains "$TESTROOT/f3" "yt-dlp" "forge plans yt-dlp subtitle acquisition"
 "$SCRIPTS/forge.sh" "https://arxiv.org/pdf/2310.06825" --dry-run --skip-doctor > "$TESTROOT/f4" 2>&1
 assert_contains "$TESTROOT/f4" "kind: pdf" "forge detects a PDF/arXiv URL"
-assert_fail "forge rejects an unknown URL" \
-    "$SCRIPTS/forge.sh" "https://example.com/page" --dry-run --skip-doctor
+# v2 (2026-06-03): generic webpages are now accepted via the webpage adapter
+# (Crawl4AI → r.jina.ai Reader → pandoc fallback). No longer rejected.
+"$SCRIPTS/forge.sh" "https://example.com/page" --dry-run --skip-doctor > "$TESTROOT/f5" 2>&1 || true
+assert_contains "$TESTROOT/f5" "kind: webpage" "forge v2: routes generic URL to webpage adapter"
 # real end-to-end: book(.md) and video-transcript(.txt) → contract, no network
 "$SCRIPTS/forge.sh" "$fmd" --only skills --output "$TESTROOT/fg1" --force >/dev/null 2>&1
 assert_file "$TESTROOT/fg1/grimoires/forge/GRIMOIRE_TASK.md" "forge book → grimoire contract"

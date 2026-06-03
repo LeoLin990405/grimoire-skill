@@ -61,16 +61,29 @@ if [[ "$INPUT" =~ ^https?:// ]]; then
         *.pdf|*arxiv.org/pdf/*|*arxiv.org/abs/*) KIND="pdf" ;;
         *youtube.com/*|*youtu.be/*|*bilibili.com/*|*vimeo.com/*|*tiktok.com/*|\
 *douyin.com/*|*twitter.com/*|*x.com/*|*.mp4|*.webm|*.mkv) KIND="video" ;;
-        *) error "Unrecognized URL. Use a *.pdf / arXiv URL, or a video URL (youtube/bilibili/…). For other sites use the kedou-media-workflow skill, then forge.sh the saved text." ;;
+        # v2 new sources
+        *github.com/*|*gitlab.com/*) KIND="github-repo" ;;
+        *.mp3|*.m4a|*.wav|*.flac|*.opus|*.ogg|*podcast*|*anchor.fm*) KIND="audio" ;;
+        http*://*) KIND="webpage" ;;
+        *) error "Unrecognized URL. Supported: PDF / arXiv / video / github repo / audio / webpage." ;;
     esac
+elif [[ "$INPUT" =~ ^git@ ]]; then
+    KIND="github-repo"   # v2
 else
-    [[ -f "$INPUT" ]] || error "File not found: $INPUT"
-    case "$lc" in
-        *.md|*.markdown)                       KIND="markdown" ;;
-        *.txt|*.text|*.srt|*.vtt)              KIND="text" ;;
-        *.pdf|*.doc|*.docx|*.ppt|*.pptx|*.png|*.jpg|*.jpeg|*.tif|*.tiff|*.bmp) KIND="pdf" ;;
-        *) error "Unsupported file type: $INPUT (pdf/doc/ppt/img/.md/.txt)" ;;
-    esac
+    [[ -e "$INPUT" ]] || error "Path not found: $INPUT"
+    if [[ -d "$INPUT" ]]; then
+        # v2: directory → Obsidian vault segment
+        KIND="obsidian-vault"
+    else
+        case "$lc" in
+            *.md|*.markdown)                       KIND="markdown" ;;
+            *.txt|*.text|*.srt|*.vtt)              KIND="text" ;;
+            *.pdf|*.doc|*.docx|*.ppt|*.pptx|*.png|*.jpg|*.jpeg|*.tif|*.tiff|*.bmp) KIND="pdf" ;;
+            # v2: local audio
+            *.mp3|*.m4a|*.wav|*.flac|*.opus|*.ogg)  KIND="audio" ;;
+            *) error "Unsupported file type: $INPUT (pdf/doc/ppt/img/.md/.txt/.mp3/.m4a/...)" ;;
+        esac
+    fi
 fi
 
 # ---- host-config preflight (uses skill-manage.sh doctor) ------------------
@@ -106,6 +119,58 @@ run() { if $DRY; then echo "  DRY> $*"; else eval "$@"; fi; }
 # ---- acquire text, then invoke grimoire -----------------------------------
 echo "[forge] input kind: $KIND"
 case "$KIND" in
+  # v2: webpage (Crawl4AI / r.jina.ai Reader / pandoc fallback)
+  webpage)
+    echo "[forge] route: webpage adapter (v2)"
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/forge-web.XXXXXX")"
+    if $DRY; then
+        echo "  DRY> source-adapter-webpage.sh '$INPUT' --out $TMPD/page.md ; grimoire.sh --from-markdown <md> ${PASS[*]:-}"
+    else
+        "$SCRIPT_DIR/source-adapter-webpage.sh" "$INPUT" --out "$TMPD/page.md"
+        [[ -s "$TMPD/page.md" ]] || error "Webpage adapter produced no Markdown for: $INPUT"
+        "$GRIMOIRE" --from-markdown "$TMPD/page.md" ${PASS[*]:-}
+    fi
+    ;;
+
+  # v2: github-repo (README + docs + SKILL.md)
+  github-repo)
+    echo "[forge] route: github-repo adapter (v2)"
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/forge-gh.XXXXXX")"
+    if $DRY; then
+        echo "  DRY> source-adapter-github-repo.sh '$INPUT' --out $TMPD/repo.md ; grimoire.sh --from-markdown <md> ${PASS[*]:-}"
+    else
+        "$SCRIPT_DIR/source-adapter-github-repo.sh" "$INPUT" --out "$TMPD/repo.md"
+        [[ -s "$TMPD/repo.md" ]] || error "GitHub repo adapter produced no Markdown for: $INPUT"
+        "$GRIMOIRE" --from-markdown "$TMPD/repo.md" ${PASS[*]:-}
+    fi
+    ;;
+
+  # v2: obsidian-vault (reads .md + frontmatter, preserves [[wikilinks]])
+  obsidian-vault)
+    echo "[forge] route: obsidian-vault adapter (v2)"
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/forge-obs.XXXXXX")"
+    if $DRY; then
+        echo "  DRY> source-adapter-obsidian.sh '$INPUT' --out $TMPD/vault.md ; grimoire.sh --from-markdown <md> ${PASS[*]:-}"
+    else
+        "$SCRIPT_DIR/source-adapter-obsidian.sh" "$INPUT" --out "$TMPD/vault.md"
+        [[ -s "$TMPD/vault.md" ]] || error "Obsidian adapter produced no Markdown for: $INPUT"
+        "$GRIMOIRE" --from-markdown "$TMPD/vault.md" ${PASS[*]:-}
+    fi
+    ;;
+
+  # v2: audio / podcast (Whisper transcription)
+  audio)
+    echo "[forge] route: audio adapter (v2)"
+    TMPD="$(mktemp -d "${TMPDIR:-/tmp}/forge-aud.XXXXXX")"
+    if $DRY; then
+        echo "  DRY> source-adapter-audio.sh '$INPUT' --out $TMPD/transcript.md ; grimoire.sh --from-text <txt> ${PASS[*]:-}"
+    else
+        "$SCRIPT_DIR/source-adapter-audio.sh" "$INPUT" --out "$TMPD/transcript.md"
+        [[ -s "$TMPD/transcript.md" ]] || error "Audio adapter produced no transcript for: $INPUT"
+        "$GRIMOIRE" --from-text "$TMPD/transcript.md" ${PASS[*]:-}
+    fi
+    ;;
+
   markdown)
     echo "[forge] route: --from-markdown (no acquisition needed)"
     run "\"$GRIMOIRE\" --from-markdown \"$INPUT\" ${PASS[*]:-}"

@@ -6,6 +6,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added (v2 — 2026-06-03)
+- **🆕 v2 architecture: Grimoire as Skill Forge Engine** — repositioned from
+  a PDF→notes tool to a **universal Skill Forge underneath `skills-master`
+  (Skill Strategist) at `~/.claude/skills/skills-master/`**. New documents
+  describe the call chain: skills-master → grimoire skill → forge.sh →
+  workspace + skill draft (already templated) → skills-master placement-
+  decision → enable.
+  - `docs/grimoire-as-engine.md` — v2 architecture (4 layers: input adapters
+    → smart classifier → distillation → quality gate), 11 source-types →
+    12 skills-master categories mapping table, sequence diagram of
+    skills-master calling Grimoire.
+  - `scripts/lib/skills-master-categories.sh` — `recommend_skills_master_category`,
+    `recommend_skill_type`, `write_skills_master_recommendation`. Auto-detects
+    6 product methodology books (cagan / perri / torres / fitzpatrick / olsen /
+    nika → 02-product-methodology), wdkns / 纳什 / 五道口 → 03-wdkns-system,
+    platform-based routing (mit-ocw / dlai / csdiy).
+- **🆕 4 new source adapters (Phase 3)**:
+  - `scripts/source-adapter-webpage.sh` — Crawl4AI → r.jina.ai (Reader API,
+    free, no auth) → curl+pandoc → curl+sed strategy chain.
+  - `scripts/source-adapter-obsidian.sh` — read Obsidian vault folder or
+    single note; preserves frontmatter + [[wikilinks]]; `--max-depth N`.
+  - `scripts/source-adapter-github-repo.sh` — shallow clone + extract
+    README + SKILL.md + docs/ + top-level structure + CHANGELOG head.
+  - `scripts/source-adapter-audio.sh` — whisper-cpp (local, M-series
+    optimized) → openai-whisper CLI strategy chain; URL/file input.
+- **`forge.sh` v2 routing** — auto-detects 4 new KINDs: `webpage`,
+  `github-repo`, `obsidian-vault`, `audio`; existing `pdf`/`video`/`markdown`/
+  `text` paths unchanged. Directory input → `obsidian-vault`. `git@` URLs →
+  `github-repo`. New file extensions: `.mp3/.m4a/.wav/.flac/.opus/.ogg`.
+- **`source-types.sh` v2** — adds 3 new source types: `github-repo`,
+  `obsidian-vault-segment`, `podcast`. `classify_source_type` heuristic
+  extended (podcast keywords, github.com / readme, /obsidian-vaults/ paths).
+  `source_unit_label` adds Module / Note / Episode units.
+
 ### Added
 - **Bilibili space → all Chinese subtitles, batch & resumable** (the batch
   evolution of the single-video path; from the validated playbook):
