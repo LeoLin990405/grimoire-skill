@@ -3,7 +3,9 @@
 > **一次解析，两件器物。**
 > **One parse. Two artifacts. One agent contract.**
 >
-> **v2 (2026-06-03): Now the underlying Skill Forge Engine for `skills-master` (Skill Strategist).**
+> **v2.1 (2026-06-03 PM): Merged into `skills-master` as `forge/engine/` on Leo's local machine.**
+> — No longer summoned as a standalone Claude Code skill locally; all "forge from source" requests route through `skills-master` (Skill Strategist) → forge engine.
+> This GitHub repo remains the canonical implementation + public release surface. Local integration only changes the **skill summoning topology**, not the engine itself.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?logo=gnu-bash)](scripts/grimoire.sh)
