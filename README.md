@@ -1,12 +1,77 @@
 # Grimoire · 魔典
 
-> **一次解析，两件器物。**  
+> **一次解析，两件器物。**
 > **One parse. Two artifacts. One agent contract.**
+>
+> **v2 (2026-06-03): Now the underlying Skill Forge Engine for `skills-master` (Skill Strategist).**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Shell](https://img.shields.io/badge/Shell-Bash-4EAA25?logo=gnu-bash)](scripts/grimoire.sh)
 [![MinerU](https://img.shields.io/badge/Powered%20by-MinerU-blue)](https://mineru.net)
 [![Obsidian](https://img.shields.io/badge/Vault-Obsidian-7C3AED)](https://obsidian.md)
+[![v2](https://img.shields.io/badge/v2-Skill%20Forge%20Engine-purple)](docs/grimoire-as-engine.md)
+
+---
+
+## 🆕 v2 (2026-06-03) — Skill Forge Engine Mode
+
+Grimoire v2 has been **repositioned as a universal Skill Forge underneath
+[`skills-master`](../skills-master/) (Skill Strategist)**. Instead of being
+called directly, Grimoire is now invoked by `skills-master` as a Claude Code
+skill or via CLI when the user wants to turn a source into a properly
+categorized, template-conforming skill draft.
+
+**Analogy**: `grimoire` ≈ webpack / compiler (lower-level engine);
+`skills-master` ≈ npm / package manager (orchestrator + governance).
+
+### What v2 adds
+
+- **🔌 4 new input source adapters** (Phase 3):
+  - **Webpage** (`source-adapter-webpage.sh`) — Crawl4AI → r.jina.ai Reader
+    API (free, no auth) → curl+pandoc → curl+sed fallback chain
+  - **Obsidian vault** (`source-adapter-obsidian.sh`) — read .md + frontmatter,
+    preserve [[wikilinks]], folder or single note input
+  - **GitHub repo** (`source-adapter-github-repo.sh`) — shallow clone, extract
+    README + SKILL.md + docs/ tree
+  - **Audio / podcast** (`source-adapter-audio.sh`) — whisper.cpp (M-series
+    optimized) → openai-whisper CLI; URL or local file
+- **🏷️ Smart category mapping** (`scripts/lib/skills-master-categories.sh`):
+  - 11 source-types → 12 `skills-master` categories
+  - Auto-detects 6 product methodology books (Cagan/Perri/Torres/Fitzpatrick/
+    Olsen/Nika → 02-product-methodology)
+  - Platform routing: bilibili/wdkns/纳什 → 03-wdkns-system, MIT OCW → 08,
+    DLAI → 07, CSDIY → 06
+- **📐 3 new `source-types`**: `github-repo`, `obsidian-vault-segment`, `podcast`
+- **🛣️ `forge.sh` v2 routing** — auto-detects 4 new KINDs (`webpage`,
+  `github-repo`, `obsidian-vault`, `audio`); existing PDF/video/markdown/text
+  paths unchanged
+
+### v2 call chain
+
+```
+Leo says "把这 PDF 蒸馏成 skill"
+   ↓
+Claude session 启动 pre-flight → skills-master loaded
+   ↓
+skills-master matches description → routes to create-skill-via-grimoire workflow
+   ↓
+Grimoire skill invoked → forge.sh
+   ↓
+forge.sh: MinerU 解析 → smart classifier → distillation → manifest.json with
+          skills_master.recommended_category + recommended_skill_type
+   ↓
+skills-master receives draft → placement-decision (Q1-Q4 questions)
+   ↓
+Leo confirms → skills-master enables, writes INDEX/category/changelog
+```
+
+See [`docs/grimoire-as-engine.md`](docs/grimoire-as-engine.md) for the full v2 architecture.
+
+### Backward compatibility
+
+**v1 usage is 100% preserved.** Direct `forge.sh <pdf>` still works; the v2
+features are additive. Existing 5 bundled skills (mineru / mineru-local /
+kedou-media-workflow / youtube-clipper / grimoire-manage) unchanged.
 
 ---
 

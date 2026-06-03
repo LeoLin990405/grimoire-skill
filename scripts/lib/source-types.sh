@@ -6,11 +6,11 @@ if [[ -n "${MINERU_SOURCE_TYPES_SH_LOADED:-}" ]]; then
 fi
 MINERU_SOURCE_TYPES_SH_LOADED=1
 
-SOURCE_TYPES="auto book course paper manual article-collection project-notes video audio web mixed"
+SOURCE_TYPES="auto book course paper manual article-collection project-notes video audio web mixed github-repo obsidian-vault-segment podcast"
 
 validate_source_type() {
     case "$1" in
-        auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed) return 0 ;;
+        auto|book|course|paper|manual|article-collection|project-notes|video|audio|web|mixed|github-repo|obsidian-vault-segment|podcast) return 0 ;;
         *) error "Unsupported source type: $1" ;;
     esac
 }
@@ -37,6 +37,12 @@ classify_source_type() {
         printf '%s' "audio"
     elif printf '%s\n%s\n' "$title_lc" "$file_sample" | grep -Eiq 'article|newsletter|post|essay collection'; then
         printf '%s' "article-collection"
+    elif printf '%s\n%s\n' "$title_lc" "$file_sample" | grep -Eiq 'podcast|episode|host:|interviewer:'; then
+        printf '%s' "podcast"
+    elif printf '%s\n%s\n' "$title_lc" "$file_sample" | grep -Eiq 'readme|github\.com|gitlab\.com|source code|repository'; then
+        printf '%s' "github-repo"
+    elif printf '%s\n' "$title_lc" | grep -Eiq '/obsidian-vaults?/'; then
+        printf '%s' "obsidian-vault-segment"
     else
         printf '%s' "book"
     fi
@@ -54,6 +60,9 @@ source_unit_label() {
         audio) printf '%s' "Segment" ;;
         web) printf '%s' "Section" ;;
         mixed) printf '%s' "Source" ;;
+        github-repo) printf '%s' "Module" ;;
+        obsidian-vault-segment) printf '%s' "Note" ;;
+        podcast) printf '%s' "Episode" ;;
         *) printf '%s' "Section" ;;
     esac
 }
