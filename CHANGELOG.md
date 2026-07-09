@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Library health lint + promotion gate** — composes with the standalone
+  [skill-librarian](https://github.com/LeoLin990405/skill-librarian) linter,
+  vendored as a single file at `scripts/lib/skill_lint.py` (Python, stdlib +
+  optional PyYAML; degrades to a regex parser when PyYAML is absent).
+  - `scripts/skill-manage.sh lint [--index]` — audit the canonical skill
+    library (dup / near-dup / name collision / dead `[[wiki]]` link /
+    description quality / stub / orphan); `--index` rewrites `INDEX.md`.
+  - `scripts/skill-manage.sh lint --pack <dir>` — **promotion gate**: check a
+    candidate skill pack for name/content collisions against the library
+    before installing it; non-zero exit = do not promote. Fills the quality
+    check the forge → candidate → install path previously lacked.
 - **Bilibili space → all Chinese subtitles, batch & resumable** (the batch
   evolution of the single-video path; from the validated playbook):
   - `scripts/lib/kedou-progress.sh`: `progress.jsonl` helpers (record /

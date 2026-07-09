@@ -49,7 +49,7 @@
 | **脚本默认不装 skill** | 技能包里的 skill 默认全是候选态（candidate），需人工审查后晋升。**例外**：显式传 `grimoire.sh --install` 或显式调用 `scripts/skill-install.sh` 时，会按用户明确选择的 agent 安装——这是**经用户明确请求、刻意跨越**候选边界，并记录在 manifest 的 `red_line_note` 里 |
 | **两段式·笔记→技能** | 一份合同（`GRIMOIRE_TASK.md`），两个顺序阶段：阶段 1 从源文写类型化笔记；阶段 2 是刻意的「重复学习」——**从刚写好的笔记**（而非原始正文）里挖技能包 |
 | **纯文本入口** | `grimoire.sh --from-text <file\|->` 跳过 MinerU，把原始文本/标准输入直接当源走 notes/skills 管线（配 `--only skills` 即「文本→技能」） |
-| **跨 agent 管理** | `scripts/skill-manage.sh`：`status`/`list`/`sync`/`uninstall`/`gate`；逐包操作，绝不动某个 agent 自有的非共享 skill |
+| **跨 agent 管理** | `scripts/skill-manage.sh`：`status`/`list`/`sync`/`uninstall`/`gate`/`lint`；逐包操作，绝不动某个 agent 自有的非共享 skill |
 
 ### English
 
@@ -61,7 +61,7 @@
 | **Scripts never install skills (by default)** | Extracted skills are candidates by default. **Exception:** passing `grimoire.sh --install` or invoking `scripts/skill-install.sh` directly installs into the agents the user explicitly chooses — a deliberate boundary crossing **by explicit user request**, recorded in the manifest's `red_line_note` |
 | **Two-stage, notes→skills** | One contract (`GRIMOIRE_TASK.md`), two sequential stages: Stage 1 writes the notes from the source; Stage 2 is a deliberate re-learning pass that mines the skill pack **from the notes the agent just wrote**, not the raw source (重复学习) |
 | **Raw-text input** | `grimoire.sh --from-text <file\|->` skips MinerU and runs the notes/skills pipeline straight from raw text or stdin (with `--only skills` = text → skill) |
-| **Cross-agent management** | `scripts/skill-manage.sh` — `status`/`list`/`sync`/`uninstall`/`gate`; per-pack only, never touches an agent's own non-shared skills |
+| **Cross-agent management** | `scripts/skill-manage.sh` — `status`/`list`/`sync`/`uninstall`/`gate`/`lint`; per-pack only, never touches an agent's own non-shared skills |
 
 ---
 

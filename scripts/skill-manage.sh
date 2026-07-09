@@ -26,6 +26,12 @@
 #       wiped its app-managed dir). Thin wrapper over skill-install.sh.
 #   skill-manage.sh uninstall --name <skill> [--agents <csv|all>] [--dry-run]
 #       Remove ONE skill from the chosen agents (only that name).
+#   skill-manage.sh lint [--index]
+#       Health-lint the canonical skill library via the vendored skill-librarian
+#       (dup/near-dup/collision/deadlink/description/stub). --index rewrites INDEX.md.
+#   skill-manage.sh lint --pack <dir>
+#       Promotion gate: check a candidate skill pack for name/content collisions
+#       against the library before installing it (non-zero exit = do not promote).
 #   skill-manage.sh gate [--dry-run]
 #       Print the manual Claude PreToolUse hook snippet and idempotently
 #       inject the skill-preflight paragraph into agent instruction files.
@@ -43,7 +49,7 @@ usage() { awk 'NR>1 && /^#/{sub(/^# ?/,"");print;next} NR>1{exit}' "${BASH_SOURC
 [[ $# -gt 0 ]] || usage
 case "$1" in -h|--help) usage ;; esac
 CMD="$1"; shift || true
-NAME=""; PACK=""; AGENTS="all"; DRY=false; SKILL=""
+NAME=""; PACK=""; AGENTS="all"; DRY=false; SKILL=""; INDEX=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         -h|--help) usage ;;
@@ -51,6 +57,7 @@ while [[ $# -gt 0 ]]; do
         --pack) PACK="${2:?Missing value for --pack}"; shift 2 ;;
         --agents) AGENTS="${2:?Missing value for --agents}"; shift 2 ;;
         --skill) SKILL="${2:?Missing value for --skill}"; shift 2 ;;
+        --index) INDEX=true; shift ;;
         --dry-run) DRY=true; shift ;;
         -*) error "Unknown option: $1" ;;
         *) error "Unexpected argument: $1" ;;
@@ -318,6 +325,29 @@ PY
     else
         echo "=== $REQMISS REQUIRED prerequisite(s) MISSING — install them before using the affected source skill ==="
         exit 1
+    fi
+    ;;
+
+lint)
+    # Library health lint via the vendored skill-librarian (single file, no LLM).
+    #   lint                     → audit the canonical SSOT library (+ --index to rewrite INDEX.md)
+    #   lint --pack <dir>        → promotion gate: check a candidate pack for name/content
+    #                              collisions against the SSOT before it is installed
+    CANON="${AT_CANON:-$HOME/.claude/skills}"
+    LINT="$SCRIPT_DIR/lib/skill_lint.py"
+    command -v python3 >/dev/null 2>&1 || error "python3 required for 'lint'"
+    [[ -f "$LINT" ]] || error "vendored linter missing: $LINT"
+    if [[ -n "$PACK" ]]; then
+        [[ -d "$PACK" ]] || error "--pack dir not found: $PACK"
+        echo "Gate: linting candidate pack '$PACK' against $CANON"
+        python3 "$LINT" --root "$PACK" --against "$CANON"
+    else
+        [[ -d "$CANON" ]] || error "library not found: $CANON"
+        if [[ "$INDEX" == true ]]; then
+            python3 "$LINT" --root "$CANON" --index
+        else
+            python3 "$LINT" --root "$CANON"
+        fi
     fi
     ;;
 
